@@ -37,14 +37,6 @@ function CelebrationPage() {
           'radial-gradient(circle at 50% 40%, #1b2f52 0%, #0b1b33 70%)',
       }}
     >
-      <button
-        type="button"
-        onClick={() => navigate('/')}
-        className="absolute top-4.5 right-5 z-20 rounded-full bg-white/12 px-4 py-1.5 text-xs font-semibold"
-      >
-        Skip →
-      </button>
-
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         {confetti.map((c) => (
           <span

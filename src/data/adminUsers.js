@@ -1,0 +1,38 @@
+export const adminUsers = [
+  {
+    id: 'amaka-obi',
+    name: 'Amaka Obi',
+    username: '@amaka.o',
+    email: 'amaka@mail.com',
+    status: 'Active',
+    tier: '$100',
+    joined: 'Jan 12, 2026',
+  },
+  {
+    id: 'david-chen',
+    name: 'David Chen',
+    username: '@dchen',
+    email: 'david@mail.com',
+    status: 'Active',
+    tier: '$50',
+    joined: 'Feb 03, 2026',
+  },
+  {
+    id: 'tolu-bankole',
+    name: 'Tolu Bankole',
+    username: '@tolu_b',
+    email: 'tolu@mail.com',
+    status: 'Inactive',
+    tier: '$15',
+    joined: 'Nov 21, 2025',
+  },
+  {
+    id: 'sarah-kim',
+    name: 'Sarah Kim',
+    username: '@sarahk',
+    email: 'sarah@mail.com',
+    status: 'Active',
+    tier: '$200',
+    joined: 'Mar 18, 2026',
+  },
+]

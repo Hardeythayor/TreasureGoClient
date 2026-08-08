@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router'
 import { treasures } from '@/data/treasures'
 import { Button } from '@/components/ui/button'
 
-const CONFETTI_COLORS = ['#e8c25e', '#f0a79e', '#8aa1c2', '#61c454', '#c9982f', '#ffffff']
+const CONFETTI_COLORS = ['#f6c854', '#f0a79e', '#8aa1c2', '#61c454', '#f2b10a', '#ffffff']
 
 function randomBetween(min, max) {
   return Math.random() * (max - min) + min
@@ -34,7 +34,7 @@ function CelebrationPage() {
       className="relative flex h-screen flex-col items-center justify-center overflow-hidden text-center text-white"
       style={{
         background:
-          'radial-gradient(circle at 50% 40%, #1b2f52 0%, #0b1b33 70%)',
+          'radial-gradient(circle at 50% 40%, #1e6e40 0%, #0e5a21 70%)',
       }}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">

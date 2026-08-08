@@ -25,10 +25,10 @@
   }
 
   /* brand palette */
-  --navy-deep: #0b1b33;
-  --navy-mid: #16305a;
-  --gold: #c9982f;
-  --gold-light: #e8c25e;
+  --navy-deep: #0e5a21;
+  --navy-mid: #15803d;
+  --gold: #f2b10a;
+  --gold-light: #f6c854;
   --ink: #1b2436;
   --muted-ink: #8a897e;
   --success: #2c7a4b;
@@ -73,7 +73,7 @@
   --sidebar-foreground: #efe9da;
   --sidebar-primary: var(--gold);
   --sidebar-primary-foreground: var(--navy-deep);
-  --sidebar-accent: rgba(201, 152, 47, 0.18);
+  --sidebar-accent: rgba(242, 177, 10, 0.18);
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-ring: var(--gold);
@@ -92,7 +92,7 @@
   --secondary-foreground: #efe9da;
   --muted: rgba(255, 255, 255, 0.06);
   --muted-foreground: #b7b4a5;
-  --accent: rgba(201, 152, 47, 0.18);
+  --accent: rgba(242, 177, 10, 0.18);
   --accent-foreground: #ffffff;
   --destructive: #e5675d;
   --border: rgba(255, 255, 255, 0.12);

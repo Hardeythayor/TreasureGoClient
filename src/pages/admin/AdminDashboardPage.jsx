@@ -56,7 +56,7 @@ function AdminDashboardPage() {
               <polyline
                 points="0,90 30,80 60,70 90,60 120,45 150,30 180,15"
                 fill="none"
-                stroke="#c9982f"
+                stroke="#f2b10a"
                 strokeWidth="3"
               />
             </svg>

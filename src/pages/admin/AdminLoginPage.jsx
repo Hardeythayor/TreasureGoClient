@@ -12,14 +12,20 @@ function AdminLoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   if (admin) {
     return <Navigate to={location.state?.from?.pathname ?? '/admin'} replace />
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    if (adminLogin(email, password)) {
+    setError('')
+    setSubmitting(true)
+    const success = await adminLogin(email, password)
+    setSubmitting(false)
+
+    if (success) {
       navigate(location.state?.from?.pathname ?? '/admin', { replace: true })
     } else {
       setError('Incorrect email or password.')
@@ -35,6 +41,11 @@ function AdminLoginPage() {
       <div className="flex flex-1 items-center justify-center p-8">
         <form className="w-full max-w-sm" onSubmit={handleSubmit}>
           <h2 className="mb-5 font-heading text-xl font-semibold">Admin Log In</h2>
+          {error && (
+            <div className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+              {error}
+            </div>
+          )}
           <div className="mb-4 space-y-1.5">
             <label className="text-xs font-semibold text-navy-mid" htmlFor="email">
               Email
@@ -64,9 +75,8 @@ function AdminLoginPage() {
             <input type="checkbox" className="size-3.5" />
             Remember me
           </label>
-          {error && <p className="mb-4 text-xs text-destructive">{error}</p>}
-          <Button type="submit" className="w-full">
-            Log In
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting ? 'Logging in…' : 'Log In'}
           </Button>
         </form>
       </div>

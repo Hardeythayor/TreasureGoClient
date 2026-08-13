@@ -4,6 +4,8 @@ import { SubscriptionProvider } from '@/context/SubscriptionContext'
 import { HuntProvider } from '@/context/HuntContext'
 import { TreasureStatusProvider } from '@/context/TreasureStatusContext'
 import { NotificationsProvider } from '@/context/NotificationsContext'
+import { SubscriptionTiersProvider } from '@/context/SubscriptionTiersContext'
+import { Toaster } from '@/components/ui/sonner'
 import AppRoutes from './AppRoutes'
 
 function App() {
@@ -13,13 +15,16 @@ function App() {
         <SubscriptionProvider>
           <TreasureStatusProvider>
             <NotificationsProvider>
-              <HuntProvider>
-                <AppRoutes />
-              </HuntProvider>
+              <SubscriptionTiersProvider>
+                <HuntProvider>
+                  <AppRoutes />
+                </HuntProvider>
+              </SubscriptionTiersProvider>
             </NotificationsProvider>
           </TreasureStatusProvider>
         </SubscriptionProvider>
       </AuthProvider>
+      <Toaster position="top-center" richColors />
     </BrowserRouter>
   )
 }

@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
-import { Compass, LayoutDashboard, Users, Box, Bell, Settings, Search, LogOut } from 'lucide-react'
+import { Compass, LayoutDashboard, Users, Box, CreditCard, Bell, Settings, Search, LogOut, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 
@@ -7,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/users', label: 'Users', icon: Users },
   { to: '/admin/treasures', label: 'Treasures', icon: Box },
+  { to: '/admin/subscription-tiers', label: 'Subscription Tiers', icon: CreditCard },
   { to: '/admin/notifications', label: 'Notifications', icon: Bell },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ]
@@ -14,20 +16,50 @@ const NAV_ITEMS = [
 function AdminShell() {
   const { adminLogout } = useAuth()
   const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   function handleLogout() {
+    setMenuOpen(false)
     adminLogout()
     navigate('/admin/login', { replace: true })
   }
 
+  function handleNavigate() {
+    setMenuOpen(false)
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <aside className="flex w-16 shrink-0 flex-col bg-sidebar text-sidebar-foreground sm:w-52">
-        <div className="flex items-center gap-2 px-3 py-5 sm:px-4">
-          <Compass className="size-5 shrink-0 text-gold-light" />
-          <span className="hidden font-heading text-sm font-semibold text-white sm:inline">
-            Treasure Go
-          </span>
+      <div
+        className={cn(
+          'fixed inset-0 z-30 bg-black/40 transition-opacity duration-300 md:hidden',
+          menuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
+        )}
+        onClick={() => setMenuOpen(false)}
+      />
+
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-300 ease-in-out',
+          menuOpen ? 'translate-x-0' : '-translate-x-full',
+          'md:static md:w-52 md:translate-x-0 md:shadow-none',
+        )}
+      >
+        <div className="flex items-center justify-between gap-2 px-4 py-5">
+          <div className="flex items-center gap-2">
+            <Compass className="size-5 shrink-0 text-gold-light" />
+            <span className="font-heading text-sm font-semibold text-white">
+              Treasure Go
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Close menu"
+            className="text-white/70 hover:text-white md:hidden"
+          >
+            <X className="size-5" />
+          </button>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-2">
           {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
@@ -35,30 +67,40 @@ function AdminShell() {
               key={to}
               to={to}
               end={end}
+              onClick={handleNavigate}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center justify-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-white/5 sm:justify-start',
+                  'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-white/5',
                   isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
                 )
               }
             >
               <Icon className="size-4 shrink-0" />
-              <span className="hidden sm:inline">{label}</span>
+              <span>{label}</span>
             </NavLink>
           ))}
           <button
             type="button"
             onClick={handleLogout}
-            className="mt-auto flex items-center justify-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-white/5 sm:justify-start"
+            className="mt-auto flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-white/5"
           >
             <LogOut className="size-4 shrink-0" />
-            <span className="hidden sm:inline">Log out</span>
+            <span>Log out</span>
           </button>
         </nav>
       </aside>
+
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border bg-card px-6 py-3.5">
-          <div className="flex w-56 items-center gap-2 rounded-lg border border-input px-3 py-1.5 text-sm text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3.5 sm:px-6">
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Open menu"
+            className="text-navy-mid md:hidden"
+          >
+            <Menu className="size-5" />
+          </button>
+          <div className="hidden w-56 items-center gap-2 rounded-lg border border-input px-3 py-1.5 text-sm text-muted-foreground sm:flex">
             <Search className="size-3.5" />
             Search…
           </div>

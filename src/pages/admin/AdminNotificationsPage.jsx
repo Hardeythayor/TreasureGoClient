@@ -64,6 +64,7 @@ function AdminNotificationsPage() {
           <Table className="text-xs">
             <TableHeader>
               <TableRow>
+                <TableHead>#</TableHead>
                 <TableHead>To</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Date</TableHead>
@@ -71,8 +72,9 @@ function AdminNotificationsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {history.map((h) => (
+              {history.map((h, i) => (
                 <TableRow key={h.to + h.date}>
+                  <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                   <TableCell>{h.to}</TableCell>
                   <TableCell>
                     <Badge variant="warning">{h.type}</Badge>

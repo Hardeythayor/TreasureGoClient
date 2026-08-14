@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
@@ -33,7 +34,8 @@ const selectClass =
 const labelClass = 'text-xs font-semibold text-navy-mid'
 
 function AdminSubscriptionTiersPage() {
-  const { tiers, createTier, updateTier, deleteTier, toggleStatus } = useSubscriptionTiers()
+  const { tiers, loading, fetchTiers, createTier, updateTier, deleteTier, toggleStatus } =
+    useSubscriptionTiers()
 
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
@@ -42,13 +44,21 @@ function AdminSubscriptionTiersPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [submitting, setSubmitting] = useState(false)
 
-  const rows = tiers.filter((t) => {
-    if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false
-    if (typeFilter !== 'all' && t.type !== typeFilter) return false
-    if (statusFilter !== 'all' && t.status !== statusFilter) return false
-    return true
-  })
+  // Debounced so typing in the search box doesn't fire a request per
+  // keystroke; type/status changes settle just as fast since they're
+  // discrete clicks, not continuous typing.
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      fetchTiers({ search, type: typeFilter, status: statusFilter }).catch((err) => {
+        toast.error(err?.message || 'Failed to load subscription tiers.')
+      })
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [search, typeFilter, statusFilter, fetchTiers])
+
+  const rows = tiers
 
   function openCreate() {
     setEditingId(null)
@@ -68,28 +78,42 @@ function AdminSubscriptionTiersPage() {
     setFormOpen(true)
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    if (editingId) {
-      updateTier(editingId, form)
-      toast.success(`"${form.name}" updated.`)
-    } else {
-      createTier(form)
-      toast.success(`"${form.name}" created.`)
+    setSubmitting(true)
+    try {
+      if (editingId) {
+        await updateTier(editingId, form)
+        toast.success(`"${form.name}" updated.`)
+      } else {
+        await createTier(form)
+        toast.success(`"${form.name}" created.`)
+      }
+      setFormOpen(false)
+    } catch (err) {
+      toast.error(err?.message || 'Something went wrong. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
-    setFormOpen(false)
   }
 
-  function handleDelete(tier) {
-    if (window.confirm(`Delete "${tier.name}"? This can't be undone.`)) {
-      deleteTier(tier.id)
+  async function handleDelete(tier) {
+    if (!window.confirm(`Delete "${tier.name}"? This can't be undone.`)) return
+    try {
+      await deleteTier(tier.id)
       toast.success(`"${tier.name}" deleted.`)
+    } catch (err) {
+      toast.error(err?.message || 'Something went wrong. Please try again.')
     }
   }
 
-  function handleToggleStatus(tier) {
-    toggleStatus(tier.id)
-    toast.success(`"${tier.name}" is now ${tier.status === 'active' ? 'inactive' : 'active'}.`)
+  async function handleToggleStatus(tier) {
+    try {
+      await toggleStatus(tier.id)
+      toast.success(`"${tier.name}" is now ${tier.status === 'active' ? 'inactive' : 'active'}.`)
+    } catch (err) {
+      toast.error(err?.message || 'Something went wrong. Please try again.')
+    }
   }
 
   return (
@@ -131,64 +155,80 @@ function AdminSubscriptionTiersPage() {
         </Button>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Validity</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground">
-                No subscription tiers match your filters.
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map((t) => (
-              <TableRow key={t.id}>
-                <TableCell className="font-medium">{t.name}</TableCell>
-                <TableCell>${t.amount}</TableCell>
-                <TableCell>{t.validityDays} days</TableCell>
-                <TableCell>
-                  <Badge variant={t.type === 'premium' ? 'warning' : 'success'}>
-                    {t.type === 'premium' ? 'Premium' : 'Free'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={t.status === 'active'}
-                      onCheckedChange={() => handleToggleStatus(t)}
-                      aria-label={`Toggle status for ${t.name}`}
-                    />
-                    <Badge variant={t.status === 'active' ? 'success' : 'neutral'}>
-                      {t.status === 'active' ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                </TableCell>
-                <TableCell>{t.createdAt}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-3 text-navy-mid">
-                    <button type="button" aria-label="Edit tier" onClick={() => openEdit(t)}>
-                      <Pencil className="size-4" />
-                    </button>
-                    <button type="button" aria-label="Delete tier" onClick={() => handleDelete(t)}>
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-                </TableCell>
+      <Card>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Validity</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            </TableHeader>
+            <TableBody>
+              {loading && rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    Loading subscription tiers…
+                  </TableCell>
+                </TableRow>
+              ) : rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    No subscription tiers match your filters.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rows.map((t, i) => (
+                  <TableRow key={t.id}>
+                    <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                    <TableCell className="font-medium">{t.name}</TableCell>
+                    <TableCell>${t.amount}</TableCell>
+                    <TableCell>{t.validityDays} days</TableCell>
+                    <TableCell>
+                      <Badge variant={t.type === 'premium' ? 'warning' : 'success'}>
+                        {t.type === 'premium' ? 'Premium' : 'Free'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={t.status === 'active'}
+                          onCheckedChange={() => handleToggleStatus(t)}
+                          aria-label={`Toggle status for ${t.name}`}
+                        />
+                        <Badge variant={t.status === 'active' ? 'success' : 'neutral'}>
+                          {t.status === 'active' ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>{t.createdAt}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3 text-navy-mid">
+                        <button type="button" aria-label="Edit tier" onClick={() => openEdit(t)}>
+                          <Pencil className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Delete tier"
+                          onClick={() => handleDelete(t)}
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent>
@@ -287,7 +327,9 @@ function AdminSubscriptionTiersPage() {
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit">{editingId ? 'Save Changes' : 'Create Tier'}</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? 'Saving…' : editingId ? 'Save Changes' : 'Create Tier'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

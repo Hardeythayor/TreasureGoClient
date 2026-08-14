@@ -22,13 +22,13 @@ function LoginPage() {
     event.preventDefault()
     setError('')
     setSubmitting(true)
-    const success = await login(email, password)
-    setSubmitting(false)
-
-    if (success) {
+    try {
+      await login(email, password)
       navigate(location.state?.from?.pathname ?? '/', { replace: true })
-    } else {
-      setError('Incorrect email or password.')
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
   }
 

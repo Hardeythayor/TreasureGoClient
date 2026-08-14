@@ -22,13 +22,13 @@ function AdminLoginPage() {
     event.preventDefault()
     setError('')
     setSubmitting(true)
-    const success = await adminLogin(email, password)
-    setSubmitting(false)
-
-    if (success) {
+    try {
+      await adminLogin(email, password)
       navigate(location.state?.from?.pathname ?? '/admin', { replace: true })
-    } else {
-      setError('Incorrect email or password.')
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
   }
 

@@ -64,14 +64,16 @@ function AdminUserDetailPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>#</TableHead>
                   <TableHead>Treasure</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Reward</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {treasuresFound.map((t) => (
+                {treasuresFound.map((t, i) => (
                   <TableRow key={t.name}>
+                    <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                     <TableCell>{t.name}</TableCell>
                     <TableCell>{t.date}</TableCell>
                     <TableCell>

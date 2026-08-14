@@ -33,32 +33,36 @@ function mockLoginResult(email, password) {
 // /login endpoint — the account's `roles` array (not a separate endpoint)
 // determines which side it's allowed into.
 //
-// Unlike other modules' generic withApiFallback usage, a reachable backend's
-// rejection here must NOT fall through to the local TEST_CREDENTIALS
-// shortcut — that would let the demo bypass override a real "wrong password"
-// response. The local mock only kicks in when the backend genuinely can't be
-// reached (not configured, offline, DNS/network failure), i.e. this module
-// isn't live yet.
+// The local TEST_CREDENTIALS shortcut only applies when no API base URL is
+// configured at all (pure offline/demo mode). Once a real API is configured,
+// every failure — unreachable, network error, or an authoritative rejection
+// — is thrown with a message describing what actually happened, instead of
+// silently succeeding via the local fallback. Masking a real connectivity or
+// auth problem behind a fake success is worse than just showing the error.
 async function authenticate(email, password, requiredRole) {
-  let result
-
-  if (isApiConfigured()) {
-    try {
-      result = await loginRequest(email, password)
-    } catch (err) {
-      const reachedBackend = err instanceof ApiError && err.status > 0
-      if (reachedBackend) return null
-      if (import.meta.env.DEV) {
-        console.warn('[auth] API unreachable, falling back to local test credentials:', err)
-      }
-      result = mockLoginResult(email, password)
+  if (!isApiConfigured()) {
+    const mock = mockLoginResult(email, password)
+    if (!mock || !mock.user?.roles?.includes(requiredRole)) {
+      throw new Error('Incorrect email or password.')
     }
-  } else {
-    result = mockLoginResult(email, password)
+    return { email: mock.user.email, token: mock.token, user: mock.user }
   }
 
-  if (!result || !result.user?.roles?.includes(requiredRole)) {
-    return null
+  let result
+  try {
+    result = await loginRequest(email, password)
+  } catch (err) {
+    const reachedBackend = err instanceof ApiError && err.status > 0
+    if (reachedBackend) {
+      throw new Error(err.message || 'Incorrect email or password.', { cause: err })
+    }
+    throw new Error('Unable to reach the server. Please check your connection and try again.', {
+      cause: err,
+    })
+  }
+
+  if (!result?.user?.roles?.includes(requiredRole)) {
+    throw new Error('This account does not have access to this area.')
   }
 
   return {
@@ -76,10 +80,8 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const session = await authenticate(email, password, 'user')
-    if (!session) return false
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
     setUser(session)
-    return true
   }, [])
 
   const logout = useCallback(() => {
@@ -89,10 +91,8 @@ export function AuthProvider({ children }) {
 
   const adminLogin = useCallback(async (email, password) => {
     const session = await authenticate(email, password, 'admin')
-    if (!session) return false
     localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
     setAdmin(session)
-    return true
   }, [])
 
   const adminLogout = useCallback(() => {

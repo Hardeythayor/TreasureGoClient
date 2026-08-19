@@ -5,6 +5,8 @@ import { HuntProvider } from '@/context/HuntContext'
 import { TreasureStatusProvider } from '@/context/TreasureStatusContext'
 import { NotificationsProvider } from '@/context/NotificationsContext'
 import { SubscriptionTiersProvider } from '@/context/SubscriptionTiersContext'
+import { AdminTreasuresProvider } from '@/context/AdminTreasuresContext'
+import { AdminUsersProvider } from '@/context/AdminUsersContext'
 import { Toaster } from '@/components/ui/sonner'
 import AppRoutes from './AppRoutes'
 
@@ -16,9 +18,13 @@ function App() {
           <TreasureStatusProvider>
             <NotificationsProvider>
               <SubscriptionTiersProvider>
-                <HuntProvider>
-                  <AppRoutes />
-                </HuntProvider>
+                <AdminTreasuresProvider>
+                  <AdminUsersProvider>
+                    <HuntProvider>
+                      <AppRoutes />
+                    </HuntProvider>
+                  </AdminUsersProvider>
+                </AdminTreasuresProvider>
               </SubscriptionTiersProvider>
             </NotificationsProvider>
           </TreasureStatusProvider>

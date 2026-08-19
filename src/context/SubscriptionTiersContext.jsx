@@ -285,9 +285,39 @@ export function SubscriptionTiersProvider({ children }) {
     [persistLocal, fetchTiers],
   )
 
+  // For dropdowns elsewhere (e.g. the treasure-creation form) that need the
+  // list of active tiers without disturbing this page's own filtered
+  // `tiers` view/state.
+  const fetchActiveTierOptions = useCallback(async () => {
+    const filters = { search: '', type: 'all', status: 'active' }
+    if (!isApiConfigured()) {
+      return filterLocally(readLocalTiers(), filters)
+    }
+
+    try {
+      const result = await fetchTiersRequest(filters)
+      return normalizeTierList(result)
+    } catch (err) {
+      const reachedBackend = err instanceof ApiError && err.status > 0
+      if (reachedBackend) throw err
+      throw new Error('Unable to reach the server. Please check your connection and try again.', {
+        cause: err,
+      })
+    }
+  }, [])
+
   return (
     <SubscriptionTiersContext.Provider
-      value={{ tiers, loading, fetchTiers, createTier, updateTier, deleteTier, toggleStatus }}
+      value={{
+        tiers,
+        loading,
+        fetchTiers,
+        fetchActiveTierOptions,
+        createTier,
+        updateTier,
+        deleteTier,
+        toggleStatus,
+      }}
     >
       {children}
     </SubscriptionTiersContext.Provider>

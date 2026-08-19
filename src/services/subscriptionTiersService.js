@@ -1,20 +1,22 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/lib/api'
 
-export function createTierRequest({ name, amount, validityDays, type, status }) {
+export function createTierRequest({ name, amount, validityDays, rewardAmount, type, status }) {
   return apiPost('/admin/subscription-tiers', {
     name,
     amount: Number(amount),
     validity: Number(validityDays),
+    reward_amount: Number(rewardAmount),
     type,
     status,
   })
 }
 
-export function updateTierRequest(id, { name, amount, validityDays, type, status }) {
+export function updateTierRequest(id, { name, amount, validityDays, rewardAmount, type, status }) {
   return apiPut(`/admin/subscription-tiers/${id}`, {
     name,
     amount: Number(amount),
     validity: Number(validityDays),
+    reward_amount: Number(rewardAmount),
     type,
     status,
   })

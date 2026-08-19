@@ -26,7 +26,14 @@ import {
 } from '@/components/ui/table'
 import { useSubscriptionTiers } from '@/context/SubscriptionTiersContext'
 
-const EMPTY_FORM = { name: '', amount: '', validityDays: '', type: 'free', status: 'active' }
+const EMPTY_FORM = {
+  name: '',
+  amount: '',
+  validityDays: '',
+  rewardAmount: '',
+  type: 'free',
+  status: 'active',
+}
 
 const selectClass =
   'h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -72,6 +79,7 @@ function AdminSubscriptionTiersPage() {
       name: tier.name,
       amount: String(tier.amount),
       validityDays: String(tier.validityDays),
+      rewardAmount: String(tier.rewardAmount),
       type: tier.type,
       status: tier.status,
     })
@@ -287,6 +295,22 @@ function AdminSubscriptionTiersPage() {
                   placeholder="e.g. 30"
                 />
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className={labelClass} htmlFor="tier-reward-amount">
+                Reward ($) (Amazon gift card amount)
+              </label>
+              <Input
+                id="tier-reward-amount"
+                type="number"
+                min="0"
+                step="1"
+                required
+                value={form.rewardAmount}
+                onChange={(e) => setForm((f) => ({ ...f, rewardAmount: e.target.value }))}
+                placeholder="e.g. 15"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">

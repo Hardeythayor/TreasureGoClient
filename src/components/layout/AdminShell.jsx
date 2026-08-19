@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
-import { Compass, LayoutDashboard, Users, Box, CreditCard, Bell, Settings, Search, LogOut, Menu, X } from 'lucide-react'
+import { Compass, LayoutDashboard, Users, Box, CreditCard, Gift, Bell, Settings, Search, LogOut, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/admin/users', label: 'Users', icon: Users },
   { to: '/admin/treasures', label: 'Treasures', icon: Box },
   { to: '/admin/subscription-tiers', label: 'Subscription Tiers', icon: CreditCard },
+  { to: '/admin/treasure-rewards', label: 'Treasure Rewards', icon: Gift },
   { to: '/admin/notifications', label: 'Notifications', icon: Bell },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ]

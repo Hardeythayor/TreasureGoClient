@@ -22,6 +22,7 @@ import AdminUsersPage from '@/pages/admin/AdminUsersPage'
 import AdminUserDetailPage from '@/pages/admin/AdminUserDetailPage'
 import AdminTreasuresPage from '@/pages/admin/AdminTreasuresPage'
 import AdminSubscriptionTiersPage from '@/pages/admin/AdminSubscriptionTiersPage'
+import AdminTreasureRewardsPage from '@/pages/admin/AdminTreasureRewardsPage'
 import AdminNotificationsPage from '@/pages/admin/AdminNotificationsPage'
 import AdminSettingsPage from '@/pages/admin/AdminSettingsPage'
 
@@ -56,6 +57,7 @@ function AppRoutes() {
           <Route path="users/:id" element={<AdminUserDetailPage />} />
           <Route path="treasures" element={<AdminTreasuresPage />} />
           <Route path="subscription-tiers" element={<AdminSubscriptionTiersPage />} />
+          <Route path="treasure-rewards" element={<AdminTreasureRewardsPage />} />
           <Route path="notifications" element={<AdminNotificationsPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
         </Route>

@@ -11,12 +11,12 @@ import {
 const TIERS_KEY = 'treasure-go:admin-subscription-tiers'
 
 const DEFAULT_TIERS = [
-  { id: 'tier-starter-pass', name: 'Starter Pass', amount: 10, validityDays: 30, type: 'free', status: 'active', createdAt: 'Jan 01, 2026' },
-  { id: 'tier-explorer-pass', name: 'Explorer Pass', amount: 25, validityDays: 30, type: 'free', status: 'active', createdAt: 'Jan 01, 2026' },
-  { id: 'tier-adventurer-pass', name: 'Adventurer Pass', amount: 50, validityDays: 30, type: 'free', status: 'active', createdAt: 'Jan 01, 2026' },
-  { id: 'tier-voyager-pass', name: 'Voyager Pass', amount: 75, validityDays: 30, type: 'premium', status: 'active', createdAt: 'Jan 01, 2026' },
-  { id: 'tier-elite-pass', name: 'Elite Pass', amount: 100, validityDays: 30, type: 'premium', status: 'active', createdAt: 'Jan 01, 2026' },
-  { id: 'tier-legendary-pass', name: 'Legendary Pass', amount: 200, validityDays: 30, type: 'premium', status: 'active', createdAt: 'Jan 01, 2026' },
+  { id: 'tier-starter-pass', name: 'Starter Pass', amount: 10, validityDays: 30, rewardAmount: 5, type: 'free', status: 'active', createdAt: 'Jan 01, 2026' },
+  { id: 'tier-explorer-pass', name: 'Explorer Pass', amount: 25, validityDays: 30, rewardAmount: 15, type: 'free', status: 'active', createdAt: 'Jan 01, 2026' },
+  { id: 'tier-adventurer-pass', name: 'Adventurer Pass', amount: 50, validityDays: 30, rewardAmount: 25, type: 'free', status: 'active', createdAt: 'Jan 01, 2026' },
+  { id: 'tier-voyager-pass', name: 'Voyager Pass', amount: 75, validityDays: 30, rewardAmount: 40, type: 'premium', status: 'active', createdAt: 'Jan 01, 2026' },
+  { id: 'tier-elite-pass', name: 'Elite Pass', amount: 100, validityDays: 30, rewardAmount: 60, type: 'premium', status: 'active', createdAt: 'Jan 01, 2026' },
+  { id: 'tier-legendary-pass', name: 'Legendary Pass', amount: 200, validityDays: 30, rewardAmount: 120, type: 'premium', status: 'active', createdAt: 'Jan 01, 2026' },
 ]
 
 const DEFAULT_FILTERS = { search: '', type: 'all', status: 'all' }
@@ -69,6 +69,7 @@ function normalizeTier(data, fallback = {}) {
     name: data.name ?? fallback.name ?? '',
     amount: Number(data.amount ?? fallback.amount ?? 0),
     validityDays: Number(data.validity ?? data.validityDays ?? fallback.validityDays ?? 0),
+    rewardAmount: Number(data.reward_amount ?? data.rewardAmount ?? fallback.rewardAmount ?? 0),
     type: data.type ?? fallback.type ?? 'free',
     status: data.status ?? fallback.status ?? 'active',
     createdAt: data.created_at
@@ -169,6 +170,7 @@ export function SubscriptionTiersProvider({ children }) {
           name: form.name,
           amount: Number(form.amount),
           validityDays: Number(form.validityDays),
+          rewardAmount: Number(form.rewardAmount),
           type: form.type,
           status: form.status,
           createdAt: formatToday(),
@@ -209,6 +211,8 @@ export function SubscriptionTiersProvider({ children }) {
                 amount: patch.amount != null ? Number(patch.amount) : t.amount,
                 validityDays:
                   patch.validityDays != null ? Number(patch.validityDays) : t.validityDays,
+                rewardAmount:
+                  patch.rewardAmount != null ? Number(patch.rewardAmount) : t.rewardAmount,
               }
             : t,
         )

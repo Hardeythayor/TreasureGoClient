@@ -7,3 +7,7 @@ export function fetchTierTreasuresRequest(subscriptionTierId) {
 export function startTreasureHuntRequest(treasureId) {
   return apiPost(`/treasures/${treasureId}/start-hunt`)
 }
+
+export function markTreasureFoundRequest(treasureId) {
+  return apiPost(`/treasures/${treasureId}/find`)
+}

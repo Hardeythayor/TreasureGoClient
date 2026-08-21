@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
+import { toast } from 'sonner'
 import {
   APIProvider,
   Map,
@@ -21,6 +22,8 @@ import {
 } from '@/context/HuntContext'
 import { useTreasureStatus } from '@/context/TreasureStatusContext'
 import { useNotifications } from '@/context/NotificationsContext'
+import { ApiError, isApiConfigured } from '@/lib/api'
+import { markTreasureFoundRequest } from '@/services/publicTreasuresService'
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? ''
 
@@ -91,21 +94,46 @@ function HomePage() {
   const proximity = activeHunt
     ? getProximityLabel(distanceMeters(treasurePosition, activeHunt.target))
     : null
+  // Guards against firing the /find request twice — the win-condition
+  // effect below can re-run (e.g. another drag) while the first call is
+  // still in flight, since nothing synchronous stops it before then.
+  const completingHuntRef = useRef(false)
 
   useEffect(() => {
     if (!activeHunt) return
-    if (distanceMeters(treasurePosition, activeHunt.target) <= HUNT_WIN_THRESHOLD_M) {
-      const treasureId = activeHunt.treasureId
-      markFound(treasureId)
-      addNotification({
-        icon: 'trophy',
-        title: 'Treasure found!',
-        message: `${activeHunt.name ?? 'A treasure'} was just found and is no longer available to hunt.`,
-        time: 'Just now',
-      })
-      clearHunt()
-      navigate(`/hunt/${treasureId}/found`)
+    if (distanceMeters(treasurePosition, activeHunt.target) > HUNT_WIN_THRESHOLD_M) return
+    if (completingHuntRef.current) return
+    completingHuntRef.current = true
+
+    const treasureId = activeHunt.treasureId
+    const treasureName = activeHunt.name
+
+    async function completeHunt() {
+      try {
+        if (isApiConfigured()) {
+          await markTreasureFoundRequest(treasureId)
+        }
+        markFound(treasureId)
+        addNotification({
+          icon: 'trophy',
+          title: 'Treasure found!',
+          message: `${treasureName ?? 'A treasure'} was just found and is no longer available to hunt.`,
+          time: 'Just now',
+        })
+        clearHunt()
+        navigate(`/hunt/${treasureId}/found`, { state: { treasureName } })
+      } catch (err) {
+        const reachedBackend = err instanceof ApiError && err.status > 0
+        toast.error(
+          reachedBackend
+            ? err.message
+            : 'Unable to reach the server. Please check your connection and try again.',
+        )
+        completingHuntRef.current = false
+      }
     }
+
+    completeHunt()
   }, [treasurePosition, activeHunt, clearHunt, navigate, markFound, addNotification])
 
   return (

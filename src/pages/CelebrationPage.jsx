@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { treasures } from '@/data/treasures'
 import { Button } from '@/components/ui/button'
 
@@ -25,8 +25,12 @@ function generateConfetti(count = 70) {
 
 function CelebrationPage() {
   const { id } = useParams()
+  const { state } = useLocation()
   const navigate = useNavigate()
-  const treasure = treasures.find((t) => t.id === id)
+  // HomePage passes the name through router state (needed for real,
+  // API-sourced treasures, since their numeric ids don't exist in this
+  // local demo list) — falling back to it here for the offline demo path.
+  const treasureName = state?.treasureName ?? treasures.find((t) => t.id === id)?.name
   const [confetti] = useState(generateConfetti)
 
   return (
@@ -71,7 +75,7 @@ function CelebrationPage() {
         className="mt-2 text-sm text-white/85 opacity-0"
         style={{ animation: 'celebrate-fade-up 0.5s ease-out 0.55s forwards' }}
       >
-        You found {treasure?.name ?? 'the treasure'} 🎉
+        You found {treasureName ?? 'the treasure'} 🎉
       </p>
 
       <Button

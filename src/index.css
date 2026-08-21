@@ -228,6 +228,18 @@ body {
   }
 }
 
+/*
+ * Google's Places Autocomplete dropdown (.pac-container) is appended
+ * straight to <body>, outside any Radix Dialog's DOM subtree. While a
+ * modal Dialog is open, Radix sets `pointer-events: none` on <body> as
+ * part of its scroll/interaction lockout, and since pointer-events is
+ * inherited, the dropdown silently becomes unclickable unless it opts
+ * back in here.
+ */
+.pac-container {
+  pointer-events: auto;
+}
+
 @keyframes celebrate-flash {
   0% {
     transform: scale(0.4);

@@ -125,6 +125,10 @@ function AdminTreasuresPage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!region) {
+      toast.error('Search for a place above to set the region before saving.')
+      return
+    }
     setSubmitting(true)
     try {
       const payload = { name: form.name, region, subscriptionTierId: form.subscriptionTierId, location }
@@ -220,7 +224,20 @@ function AdminTreasuresPage() {
       </Card>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent
+          className="sm:max-w-lg"
+          onInteractOutside={(e) => {
+            // The Google Places suggestion dropdown (.pac-container) is
+            // appended straight to document.body, outside this dialog's DOM
+            // subtree — without this, Radix treats a click on it as an
+            // outside interaction and closes the dialog before Google's own
+            // mousedown-based selection handler gets to run, so the pick
+            // silently does nothing.
+            if (e.target instanceof Element && e.target.closest('.pac-container')) {
+              e.preventDefault()
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{editingId ? 'Edit Treasure' : 'Create New Treasure'}</DialogTitle>
             <DialogDescription>
@@ -267,25 +284,18 @@ function AdminTreasuresPage() {
             </div>
 
             <div className="space-y-1">
-              <label className={labelClass} htmlFor="treasure-region">
-                Region
-              </label>
-              <Input
-                id="treasure-region"
-                required
-                value={region}
-                onChange={(e) => setRegion(e.target.value)}
-                placeholder="Auto-filled from the place you search below"
-              />
-            </div>
-
-            <div className="space-y-1">
               <span className={labelClass}>Hiding Spot</span>
               <TreasureLocationPicker
                 location={location}
                 onLocationChange={setLocation}
                 onPlaceSelect={setRegion}
               />
+              <p className="text-[11px] text-muted-foreground">
+                Region:{' '}
+                <span className="font-medium text-foreground">
+                  {region || 'search for a place above to set this'}
+                </span>
+              </p>
             </div>
 
             <DialogFooter className="mt-2">

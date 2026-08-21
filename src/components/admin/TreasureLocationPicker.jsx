@@ -96,7 +96,15 @@ function TreasureLocationPicker({ location, onLocationChange, onPlaceSelect }) {
           defaultCenter={position}
           defaultZoom={13}
           gestureHandling="greedy"
-          disableDefaultUI
+          // Individual control flags instead of disableDefaultUI + a
+          // re-enable override — the override doesn't reliably take effect
+          // when set alongside disableDefaultUI in the same options object.
+          zoomControl={false}
+          mapTypeControl={false}
+          streetViewControl={false}
+          rotateControl={false}
+          scaleControl={false}
+          fullscreenControl
           className="h-64 w-full overflow-hidden rounded-lg"
         >
           <LocationMarker position={position} onMoved={onLocationChange} />

@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import SideMenuDrawer from '@/components/layout/SideMenuDrawer'
 import DirectionalPad from '@/components/home/DirectionalPad'
 import QuickNavPill, { QUICK_NAV } from '@/components/layout/QuickNavPill'
+import { Switch } from '@/components/ui/switch'
 import {
   useHunt,
   distanceMeters,
@@ -20,15 +21,10 @@ import {
 } from '@/context/HuntContext'
 import { useTreasureStatus } from '@/context/TreasureStatusContext'
 import { useNotifications } from '@/context/NotificationsContext'
-import { treasures } from '@/data/treasures'
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? ''
 
 const LAGOS_CENTER = { lat: 6.5244, lng: 3.3792 }
-
-// TEMP: reveals the hunt's exact hidden spot on the map for testing the
-// celebration flow. Flip to false (or remove) once done testing.
-const DEBUG_REVEAL_HUNT_TARGET = true
 
 function DebugTargetMarker({ position }) {
   return (
@@ -79,6 +75,10 @@ function DraggableTreasureMarker({ position, onMoved }) {
 
 function HomePage() {
   const [menuOpen, setMenuOpen] = useState(false)
+  // TEMP: reveals the hunt's exact hidden spot on the map for testing the
+  // celebration flow. Remove this along with the debug toggle UI below once
+  // done testing.
+  const [debugRevealHuntTarget, setDebugRevealHuntTarget] = useState(true)
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { activeHunt, clearHunt } = useHunt()
@@ -88,9 +88,6 @@ function HomePage() {
   const mapCenter = activeHunt?.region ?? LAGOS_CENTER
   const mapZoom = activeHunt ? HUNT_ZOOM : 12
   const [treasurePosition, setTreasurePosition] = useState(mapCenter)
-  const huntTreasure = activeHunt
-    ? treasures.find((t) => t.id === activeHunt.treasureId)
-    : null
   const proximity = activeHunt
     ? getProximityLabel(distanceMeters(treasurePosition, activeHunt.target))
     : null
@@ -99,12 +96,11 @@ function HomePage() {
     if (!activeHunt) return
     if (distanceMeters(treasurePosition, activeHunt.target) <= HUNT_WIN_THRESHOLD_M) {
       const treasureId = activeHunt.treasureId
-      const found = treasures.find((t) => t.id === treasureId)
       markFound(treasureId)
       addNotification({
         icon: 'trophy',
         title: 'Treasure found!',
-        message: `${found?.name ?? 'A treasure'} in the $${found?.tier ?? ''} tier was just found and is no longer available to hunt.`,
+        message: `${activeHunt.name ?? 'A treasure'} was just found and is no longer available to hunt.`,
         time: 'Just now',
       })
       clearHunt()
@@ -127,7 +123,7 @@ function HomePage() {
             position={treasurePosition}
             onMoved={setTreasurePosition}
           />
-          {DEBUG_REVEAL_HUNT_TARGET && activeHunt && (
+          {debugRevealHuntTarget && activeHunt && (
             <DebugTargetMarker position={activeHunt.target} />
           )}
         </Map>
@@ -139,10 +135,10 @@ function HomePage() {
         <span className="font-heading text-sm font-bold">Treasure Go</span>
       </div>
 
-      {huntTreasure && (
+      {activeHunt && (
         <div className="absolute top-16 left-1/2 z-10 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-full bg-navy-deep/80 py-2 pr-2 pl-4 text-white backdrop-blur-sm md:top-4">
           <span className="min-w-0 truncate text-xs font-semibold">
-            Hunting: {huntTreasure.name}
+            Hunting: {activeHunt.name}
           </span>
           <span className="h-4 w-px shrink-0 bg-white/20" />
           <span className="shrink-0 text-xs font-medium whitespace-nowrap text-gold-light">
@@ -167,6 +163,17 @@ function HomePage() {
       >
         <MoreVertical className="size-5" />
       </button>
+
+      {/* TEMP: lets QA flip DEBUG_REVEAL_HUNT_TARGET without touching the
+          codebase — remove alongside the state/marker above once done. */}
+      <label className="absolute top-19 right-4 z-10 flex items-center gap-1.5 rounded-full bg-white py-1.5 pr-3 pl-2.5 text-navy-mid shadow-lg">
+        <Switch
+          size="sm"
+          checked={debugRevealHuntTarget}
+          onCheckedChange={setDebugRevealHuntTarget}
+        />
+        <span className="text-[10px] font-semibold whitespace-nowrap">Reveal target</span>
+      </label>
 
       <nav className="fixed top-1/2 right-5 z-10 hidden -translate-y-1/2 flex-col gap-1.5 rounded-2xl bg-white p-2 shadow-lg md:flex">
         {QUICK_NAV.map(({ to, icon: Icon, label }) => {

@@ -19,9 +19,9 @@ function AdminShell() {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
 
-  function handleLogout() {
+  async function handleLogout() {
     setMenuOpen(false)
-    adminLogout()
+    await adminLogout()
     navigate('/admin/login', { replace: true })
   }
 

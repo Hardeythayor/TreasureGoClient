@@ -9,6 +9,7 @@ import { AdminTreasuresProvider } from '@/context/AdminTreasuresContext'
 import { AdminUsersProvider } from '@/context/AdminUsersContext'
 import { AdminTreasureRewardsProvider } from '@/context/AdminTreasureRewardsContext'
 import { RewardsProvider } from '@/context/RewardsContext'
+import { MessagesProvider } from '@/context/MessagesContext'
 import { Toaster } from '@/components/ui/sonner'
 import AppRoutes from './AppRoutes'
 
@@ -24,9 +25,11 @@ function App() {
                   <AdminUsersProvider>
                     <AdminTreasureRewardsProvider>
                       <RewardsProvider>
-                        <HuntProvider>
-                          <AppRoutes />
-                        </HuntProvider>
+                        <MessagesProvider>
+                          <HuntProvider>
+                            <AppRoutes />
+                          </HuntProvider>
+                        </MessagesProvider>
                       </RewardsProvider>
                     </AdminTreasureRewardsProvider>
                   </AdminUsersProvider>

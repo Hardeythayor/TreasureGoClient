@@ -11,3 +11,7 @@ export function fetchCurrentUserRequest() {
 export function updateProfileRequest({ name, email, username, country }) {
   return apiPut('/profile', { name, email, username, country })
 }
+
+export function logoutRequest() {
+  return apiPost('/logout')
+}

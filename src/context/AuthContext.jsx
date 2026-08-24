@@ -1,6 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { ApiError, isApiConfigured } from '@/lib/api'
-import { fetchCurrentUserRequest, loginRequest, updateProfileRequest } from '@/services/authService'
+import {
+  fetchCurrentUserRequest,
+  loginRequest,
+  logoutRequest,
+  updateProfileRequest,
+} from '@/services/authService'
 
 export const TEST_CREDENTIALS = {
   email: 'user@treasurego.com',
@@ -170,7 +175,19 @@ export function AuthProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const logout = useCallback(() => {
+  // Best-effort: the token is cleared locally either way, so a failed
+  // server-side invalidation shouldn't block the user from logging out or
+  // surface an error for something that isn't really theirs to retry. The
+  // request has to fire before the token is cleared, since that's what the
+  // interceptor attaches as the Authorization header.
+  const logout = useCallback(async () => {
+    if (isApiConfigured()) {
+      try {
+        await logoutRequest()
+      } catch {
+        // ignored — see comment above
+      }
+    }
     localStorage.removeItem(SESSION_KEY)
     setUser(null)
   }, [])
@@ -223,7 +240,14 @@ export function AuthProvider({ children }) {
     setAdmin(session)
   }, [])
 
-  const adminLogout = useCallback(() => {
+  const adminLogout = useCallback(async () => {
+    if (isApiConfigured()) {
+      try {
+        await logoutRequest()
+      } catch {
+        // ignored — see the comment on logout() above
+      }
+    }
     localStorage.removeItem(ADMIN_SESSION_KEY)
     setAdmin(null)
   }, [])

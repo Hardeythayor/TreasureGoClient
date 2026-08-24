@@ -36,9 +36,9 @@ function SideMenuDrawer({ open, onClose, persistOnDesktop = false }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
-  function handleLogout() {
+  async function handleLogout() {
     onClose()
-    logout()
+    await logout()
     navigate('/login', { replace: true })
   }
 

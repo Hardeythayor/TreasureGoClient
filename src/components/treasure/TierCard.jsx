@@ -15,15 +15,26 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { useSubscription } from '@/context/SubscriptionContext'
 import { ApiError, isApiConfigured } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import { createSubscriptionRequest, verifyTransactionRequest } from '@/services/subscriptionsService'
 
 const FLUTTERWAVE_PUBLIC_KEY = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY ?? ''
 
-function TierCard({ id, name, amount, validity, type, rewardAmount, icon, serverActive }) {
+function TierCard({
+  id,
+  name,
+  amount,
+  validity,
+  type,
+  rewardAmount,
+  icon,
+  serverActive,
+  hasActiveSubscription,
+}) {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { activateTier, isTierActive } = useSubscription()
+  const { activateTier, isTierActive, subscription } = useSubscription()
 
   const premium = type === 'premium'
   // Payment/activation/routing are all keyed by the real backend tier `id`
@@ -37,6 +48,11 @@ function TierCard({ id, name, amount, validity, type, rewardAmount, icon, server
   // for the moment right after a successful payment, in case the tiers list
   // hasn't been refetched yet.
   const active = serverActive || isTierActive(id)
+  // A user can only ever have one active subscription — `hasActiveSubscription`
+  // is the server's word on that (passed down from the tiers list), OR'd with
+  // the local post-activation bridge for the same reason `active` is, so a
+  // second tier can't be selected in the gap before the list is refetched.
+  const blockedByExistingSubscription = !active && (hasActiveSubscription || Boolean(subscription))
 
   const [txRef, setTxRef] = useState(null)
   const [txAmount, setTxAmount] = useState(numericAmount)
@@ -126,9 +142,41 @@ function TierCard({ id, name, amount, validity, type, rewardAmount, icon, server
   }
 
   async function handleSelect() {
-    if (active || !premium) {
+    if (active) {
       setOpen(false)
       navigate(`/treasures/${id}`)
+      return
+    }
+
+    if (blockedByExistingSubscription) {
+      toast.error('You already have an active subscription. Cancel it before subscribing to another tier.')
+      return
+    }
+
+    if (!premium) {
+      // Free tiers still call create-subscription, but the backend doesn't
+      // issue a real transaction for them — there's nothing to pay, so
+      // Flutterwave is skipped entirely and we go straight to the tier's
+      // treasures once the subscription exists.
+      setCreatingCheckout(true)
+      try {
+        if (isApiConfigured()) {
+          await createSubscriptionRequest(id)
+        }
+        activateTier(id, null)
+        toast.success('Subscription activated!')
+        setOpen(false)
+        navigate(`/treasures/${id}`)
+      } catch (err) {
+        const reachedBackend = err instanceof ApiError && err.status > 0
+        toast.error(
+          reachedBackend
+            ? err.message
+            : 'Unable to reach the server. Please check your connection and try again.',
+        )
+      } finally {
+        setCreatingCheckout(false)
+      }
       return
     }
 
@@ -169,7 +217,10 @@ function TierCard({ id, name, amount, validity, type, rewardAmount, icon, server
       <button
         type="button"
         onClick={handleOpen}
-        className="flex w-full items-center gap-4 rounded-2xl bg-linear-to-br from-navy-mid to-navy-deep p-4 text-left shadow-lg ring-1 ring-white/10 transition-transform hover:-translate-y-0.5"
+        className={cn(
+          'flex w-full items-center gap-4 rounded-2xl bg-linear-to-br from-navy-mid to-navy-deep p-4 text-left shadow-lg ring-1 ring-white/10 transition-transform hover:-translate-y-0.5',
+          active && 'ring-2 ring-gold ring-offset-2 ring-offset-background',
+        )}
       >
         <img src={icon} alt="" className="size-24 shrink-0 drop-shadow-xl" />
         <div className="flex flex-1 flex-col items-end gap-2">
@@ -221,10 +272,15 @@ function TierCard({ id, name, amount, validity, type, rewardAmount, icon, server
             onClick={handleSelect}
             size="lg"
             className="mt-7 w-full rounded-full"
-            disabled={creatingCheckout}
+            disabled={creatingCheckout || blockedByExistingSubscription}
           >
             {creatingCheckout ? 'Preparing checkout…' : active ? 'View Treasures' : 'Select'}
           </Button>
+          {blockedByExistingSubscription && (
+            <p className="mt-2.5 text-center text-[11px] text-white/60">
+              You already have an active subscription — cancel it to switch tiers.
+            </p>
+          )}
         </div>
       </DialogContent>
     </Dialog>

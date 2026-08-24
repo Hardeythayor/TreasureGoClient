@@ -6,7 +6,6 @@ import {
   CreditCard,
   Gift,
   Settings as SettingsIcon,
-  Globe,
   Mail,
   LogOut,
 } from 'lucide-react'
@@ -17,14 +16,24 @@ const DRAWER_ITEMS = [
   { to: '/', label: 'Home', icon: MapPin },
   { to: '/profile', label: 'Profile', icon: User },
   { to: '/treasures', label: 'Treasure Pass', icon: CreditCard },
-  { to: '/rewards', label: 'Reward', icon: Gift },
+  { to: '/rewards', label: 'Rewards', icon: Gift },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
-  { to: '/settings/language', label: 'Language', icon: Globe },
+  // { to: '/settings/language', label: 'Language', icon: Globe },
   { to: '/contact', label: 'Contact Us', icon: Mail },
 ]
 
+function initialsFor(name) {
+  if (!name) return '?'
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+}
+
 function SideMenuDrawer({ open, onClose, persistOnDesktop = false }) {
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
 
   function handleLogout() {
@@ -68,11 +77,11 @@ function SideMenuDrawer({ open, onClose, persistOnDesktop = false }) {
         <div className="mb-5 flex items-center justify-between border-b border-white/10 pb-4">
           <div className="flex items-center gap-3">
             <div className="flex size-11 items-center justify-center rounded-full bg-linear-to-br from-gold-light to-gold font-heading font-bold text-navy-deep">
-              AO
+              {initialsFor(user?.name)}
             </div>
             <div>
-              <div className="text-sm font-semibold">Amaka Obi</div>
-              <div className="text-xs text-white/60">@amaka.o</div>
+              <div className="text-sm font-semibold">{user?.name || 'Loading…'}</div>
+              <div className="text-xs text-white/60">{user?.username ? `@${user.username}` : ''}</div>
             </div>
           </div>
           <button

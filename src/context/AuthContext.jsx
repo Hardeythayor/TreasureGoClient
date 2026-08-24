@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { ApiError, isApiConfigured } from '@/lib/api'
-import { loginRequest } from '@/services/authService'
+import { fetchCurrentUserRequest, loginRequest, updateProfileRequest } from '@/services/authService'
 
 export const TEST_CREDENTIALS = {
   email: 'user@treasurego.com',
@@ -10,12 +10,65 @@ export const TEST_CREDENTIALS = {
 const SESSION_KEY = 'treasure-go:session'
 const ADMIN_SESSION_KEY = 'treasure-go:admin-session'
 
+// Used only when no API base URL is configured at all (pure offline/demo
+// mode) — the login response itself only carries {email, roles}, so this
+// fills in the rest of what GET /user would otherwise provide.
+const LOCAL_PROFILE = {
+  id: 'amaka-obi',
+  name: 'Amaka Obi',
+  username: 'amaka.o',
+  country: 'Nigeria',
+  status: 'active',
+  createdAt: '2026-01-12T00:00:00.000000Z',
+  totalTreasuresFound: 3,
+  currentSubscription: {
+    id: 'local-sub',
+    status: 'active',
+    subscribedOn: '2026-01-12T00:00:00.000000Z',
+    tierId: '100',
+    tierName: '$100',
+    tierAmount: '100',
+    tierType: 'premium',
+  },
+}
+
 function readSession(key) {
   try {
     const raw = localStorage.getItem(key)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
+  }
+}
+
+// GET /user's response wraps the record in a `user` key — falls back to a
+// generic `data` wrap or a bare object, matching every other endpoint on
+// this backend.
+function extractProfile(result) {
+  return result?.user ?? result?.data ?? result ?? {}
+}
+
+function normalizeProfile(data) {
+  const sub = data.current_subscription
+  return {
+    id: data.id != null ? String(data.id) : '',
+    name: data.name ?? '',
+    username: data.username ?? '',
+    country: data.country ?? '',
+    status: data.status ?? '',
+    createdAt: data.created_at ?? '',
+    totalTreasuresFound: Number(data.total_treasures_found ?? 0),
+    currentSubscription: sub
+      ? {
+          id: sub.id,
+          status: sub.status ?? '',
+          subscribedOn: sub.subscribed_on ?? '',
+          tierId: sub.subscription_tier_id != null ? String(sub.subscription_tier_id) : '',
+          tierName: sub.subscription_tier?.name ?? '',
+          tierAmount: sub.subscription_tier?.amount ?? '',
+          tierType: sub.subscription_tier?.type ?? '',
+        }
+      : null,
   }
 }
 
@@ -45,7 +98,7 @@ async function authenticate(email, password, requiredRole) {
     if (!mock || !mock.user?.roles?.includes(requiredRole)) {
       throw new Error('Incorrect email or password.')
     }
-    return { email: mock.user.email, token: mock.token, user: mock.user }
+    return { email: mock.user.email, token: mock.token, roles: mock.user.roles }
   }
 
   let result
@@ -68,7 +121,21 @@ async function authenticate(email, password, requiredRole) {
   return {
     email: result.user?.email ?? email,
     token: result.token ?? null,
-    user: result.user ?? { email },
+    roles: result.user?.roles ?? [],
+  }
+}
+
+// Customer-only — the admin panel has its own separate identity concerns
+// (managing OTHER users via AdminUsersContext), not this endpoint. Never
+// throws: a failed fetch just means the session keeps running on the
+// minimal {email, roles} login gave it until a later fetch succeeds.
+async function fetchProfile() {
+  if (!isApiConfigured()) return LOCAL_PROFILE
+  try {
+    const result = await fetchCurrentUserRequest()
+    return normalizeProfile(extractProfile(result))
+  } catch {
+    return {}
   }
 }
 
@@ -80,13 +147,74 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const session = await authenticate(email, password, 'user')
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
-    setUser(session)
+    const profile = await fetchProfile()
+    const fullSession = { ...session, ...profile }
+    localStorage.setItem(SESSION_KEY, JSON.stringify(fullSession))
+    setUser(fullSession)
+  }, [])
+
+  // Backfills the profile fields for a session that was persisted before
+  // this fetch existed (or whose earlier fetch failed) — runs once on
+  // mount; `user.name` already being set means there's nothing to do.
+  useEffect(() => {
+    if (!user || user.name) return
+    fetchProfile().then((profile) => {
+      if (Object.keys(profile).length === 0) return
+      setUser((prev) => {
+        if (!prev) return prev
+        const next = { ...prev, ...profile }
+        localStorage.setItem(SESSION_KEY, JSON.stringify(next))
+        return next
+      })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const logout = useCallback(() => {
     localStorage.removeItem(SESSION_KEY)
     setUser(null)
+  }, [])
+
+  // Same rule as the other write actions in this codebase: once the API is
+  // configured, a reachable backend's rejection is surfaced (not swallowed),
+  // and only a genuinely unreachable backend falls back to a local-only
+  // update. Only the 4 fields this form actually submits are merged back in
+  // — reusing normalizeProfile here would be wrong, since a response that
+  // doesn't happen to echo back status/createdAt/etc. would normalize those
+  // to defaults and blank out real values the patch never touched.
+  const updateProfile = useCallback(async (patch) => {
+    function applyLocally(fields) {
+      setUser((prev) => {
+        if (!prev) return prev
+        const next = { ...prev, ...fields }
+        localStorage.setItem(SESSION_KEY, JSON.stringify(next))
+        return next
+      })
+    }
+
+    if (!isApiConfigured()) {
+      applyLocally(patch)
+      return
+    }
+
+    let result
+    try {
+      result = await updateProfileRequest(patch)
+    } catch (err) {
+      const reachedBackend = err instanceof ApiError && err.status > 0
+      if (reachedBackend) throw err
+      throw new Error('Unable to reach the server. Please check your connection and try again.', {
+        cause: err,
+      })
+    }
+
+    const data = extractProfile(result)
+    applyLocally({
+      name: data.name ?? patch.name,
+      email: data.email ?? patch.email,
+      username: data.username ?? patch.username,
+      country: data.country ?? patch.country,
+    })
   }, [])
 
   const adminLogin = useCallback(async (email, password) => {
@@ -102,7 +230,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, login, logout, admin, adminLogin, adminLogout }}
+      value={{ user, login, logout, updateProfile, admin, adminLogin, adminLogout }}
     >
       {children}
     </AuthContext.Provider>

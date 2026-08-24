@@ -39,6 +39,10 @@ function extractTierList(result) {
 // one — offline/fallback mode has no such record, so nothing is marked
 // active here and TierCard's own local check is the only signal.
 function normalizeTiers(list, currentTierId = null) {
+  // A user can only have one active subscription at a time — every card
+  // gets this flag so a non-active one can block selection rather than
+  // letting the user stack a second subscription on top of an existing one.
+  const hasActiveSubscription = currentTierId != null
   return [...list]
     .sort((a, b) => Number(a.amount ?? 0) - Number(b.amount ?? 0))
     .map((data, i) => ({
@@ -50,6 +54,7 @@ function normalizeTiers(list, currentTierId = null) {
       rewardAmount: Number(data.reward_amount ?? 0),
       icon: ICONS[i % ICONS.length],
       serverActive: currentTierId != null && String(data.id) === currentTierId,
+      hasActiveSubscription,
     }))
 }
 

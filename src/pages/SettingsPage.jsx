@@ -1,8 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
+import { toast } from 'sonner'
 import { ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
+import { useAuth } from '@/context/AuthContext'
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  isPushNotificationsEnabled,
+} from '@/lib/beams'
 
 function SettingsRow({ label, to, right }) {
   const content = (
@@ -35,8 +42,31 @@ function SettingsGroup({ title, children }) {
 }
 
 function SettingsPage() {
-  const [push, setPush] = useState(true)
+  const { user } = useAuth()
+  const [push, setPush] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
+
+  useEffect(() => {
+    isPushNotificationsEnabled().then(setPush)
+  }, [])
+
+  async function handleTogglePush(next) {
+    setPushBusy(true)
+    try {
+      if (next) {
+        if (!user?.id) throw new Error('You must be logged in to enable push notifications.')
+        await enablePushNotifications(user.id)
+      } else {
+        await disablePushNotifications()
+      }
+      setPush(next)
+    } catch (err) {
+      toast.error(err?.message || 'Failed to update push notification settings.')
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   return (
     <div>
@@ -44,7 +74,7 @@ function SettingsPage() {
         <SettingsGroup title="Notifications">
           <SettingsRow
             label="Push notifications"
-            right={<Switch checked={push} onCheckedChange={setPush} />}
+            right={<Switch checked={push} onCheckedChange={handleTogglePush} disabled={pushBusy} />}
           />
         </SettingsGroup>
         <SettingsGroup title="Privacy">

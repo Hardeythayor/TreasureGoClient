@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { ApiError, isApiConfigured } from '@/lib/api'
+import { enablePushNotifications } from '@/lib/beams'
 import {
   fetchCurrentUserRequest,
   loginRequest,
@@ -174,6 +175,16 @@ export function AuthProvider({ children }) {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Automatic push registration — fires whenever a customer id becomes
+  // available, whether from a fresh login or an already-persisted session
+  // on page load, not just the login() call itself. Best-effort: a
+  // declined/unsupported/unconfigured permission shouldn't block or
+  // interrupt using the app, so failures are swallowed here.
+  useEffect(() => {
+    if (!user?.id) return
+    enablePushNotifications(user.id).catch(() => {})
+  }, [user?.id])
 
   // Best-effort: the token is cleared locally either way, so a failed
   // server-side invalidation shouldn't block the user from logging out or

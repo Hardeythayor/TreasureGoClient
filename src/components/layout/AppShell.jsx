@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { Compass, Menu, ArrowLeft } from 'lucide-react'
 import SideMenuDrawer from '@/components/layout/SideMenuDrawer'
 import QuickNavPill from '@/components/layout/QuickNavPill'
+import NotificationBell from '@/components/layout/NotificationBell'
+import { useMessages } from '@/context/MessagesContext'
 
 const PAGE_META = {
   '/messages': { title: 'Notifications' },
@@ -32,6 +34,7 @@ function AppShell() {
   const meta = getPageMeta(pathname)
   const title = meta?.title
   const showBack = meta?.showBack
+  const { unreadCount } = useMessages()
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
@@ -64,14 +67,23 @@ function AppShell() {
           </>
         )}
 
-        <button
-          type="button"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Toggle menu"
-          className="ml-auto shrink-0 text-white/80 hover:text-white"
-        >
-          <Menu className="size-5" />
-        </button>
+        <div className="ml-auto flex shrink-0 items-center gap-3.5">
+          <Link
+            to="/messages"
+            aria-label="Messages"
+            className="text-white/80 hover:text-white"
+          >
+            <NotificationBell count={unreadCount} />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Toggle menu"
+            className="text-white/80 hover:text-white"
+          >
+            <Menu className="size-5" />
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">

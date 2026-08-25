@@ -13,3 +13,11 @@ export function markNotificationReadRequest(id) {
 export function deleteNotificationRequest(id) {
   return apiDelete(`/notifications/${id}`)
 }
+
+export function markAllNotificationsReadRequest() {
+  return apiPatch('/notifications/read-all')
+}
+
+export function deleteAllNotificationsRequest() {
+  return apiDelete('/notifications')
+}

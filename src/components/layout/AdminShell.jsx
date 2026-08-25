@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router'
 import { Compass, LayoutDashboard, Users, Box, CreditCard, Gift, Bell, Settings, Search, LogOut, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
+import NotificationBell from '@/components/layout/NotificationBell'
 
 const NAV_ITEMS = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -105,8 +106,16 @@ function AdminShell() {
             <Search className="size-3.5" />
             Search…
           </div>
-          <div className="flex size-8 items-center justify-center rounded-full bg-linear-to-br from-gold-light to-gold text-xs font-bold text-navy-deep">
-            AD
+          <div className="ml-auto flex items-center gap-3.5 sm:ml-0">
+            {/* No admin inbox/count source yet — the admin messages page is
+                still to be designed, so this is a placeholder with no badge
+                or click destination for now. */}
+            <span className="text-navy-mid">
+              <NotificationBell count={0} />
+            </span>
+            <div className="flex size-8 items-center justify-center rounded-full bg-linear-to-br from-gold-light to-gold text-xs font-bold text-navy-deep">
+              AD
+            </div>
           </div>
         </div>
         <main className="flex-1 overflow-y-auto p-6">

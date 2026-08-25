@@ -11,7 +11,7 @@ import { Compass, MoreVertical, MapPin, X as XIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SideMenuDrawer from '@/components/layout/SideMenuDrawer'
 import DirectionalPad from '@/components/home/DirectionalPad'
-import QuickNavPill, { QUICK_NAV } from '@/components/layout/QuickNavPill'
+import QuickNavPill, { QUICK_NAV, NavIcon } from '@/components/layout/QuickNavPill'
 import { Switch } from '@/components/ui/switch'
 import {
   useHunt,
@@ -22,6 +22,7 @@ import {
 } from '@/context/HuntContext'
 import { useTreasureStatus } from '@/context/TreasureStatusContext'
 import { useNotifications } from '@/context/NotificationsContext'
+import { useMessages } from '@/context/MessagesContext'
 import { ApiError, isApiConfigured } from '@/lib/api'
 import { markTreasureFoundRequest } from '@/services/publicTreasuresService'
 
@@ -87,6 +88,7 @@ function HomePage() {
   const { activeHunt, clearHunt } = useHunt()
   const { markFound } = useTreasureStatus()
   const { addNotification } = useNotifications()
+  const { unreadCount } = useMessages()
 
   const mapCenter = activeHunt?.region ?? LAGOS_CENTER
   const mapZoom = activeHunt ? HUNT_ZOOM : 12
@@ -215,7 +217,11 @@ function HomePage() {
                 active ? 'bg-gold text-navy-deep' : 'hover:bg-black/5',
               )}
             >
-              <Icon className="size-4.5" />
+              <NavIcon
+                icon={Icon}
+                unreadBadge={to === '/messages' ? unreadCount : 0}
+                className="size-4.5"
+              />
               <span className="text-[10px] leading-none font-medium">{label}</span>
             </Link>
           )

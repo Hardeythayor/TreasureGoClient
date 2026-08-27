@@ -1,16 +1,30 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Mail, Copy } from 'lucide-react'
+import { Mail, Copy, Check } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ApiError, isApiConfigured } from '@/lib/api'
 import { sendContactMessageRequest } from '@/services/contactService'
 
+const CONTACT_EMAIL = 'treasuregolive@gmail.com'
+
 function ContactPage() {
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopyEmail() {
+    try {
+      await navigator.clipboard.writeText(CONTACT_EMAIL)
+      setCopied(true)
+      toast.success('Email copied to clipboard.')
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error('Failed to copy email.')
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -43,10 +57,19 @@ function ContactPage() {
             <p className="my-3 text-sm text-neutral">
               We usually reply within 24 hours.
             </p>
-            <div className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 font-mono text-xs">
-              treasuregolive@gmail.com
-              <Copy className="size-3.5 text-muted-foreground" />
-            </div>
+            <button
+              type="button"
+              onClick={handleCopyEmail}
+              aria-label="Copy email address"
+              className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 font-mono text-xs hover:bg-accent/70"
+            >
+              {CONTACT_EMAIL}
+              {copied ? (
+                <Check className="size-3.5 text-green-600" />
+              ) : (
+                <Copy className="size-3.5 text-muted-foreground" />
+              )}
+            </button>
           </CardContent>
         </Card>
         <Card>

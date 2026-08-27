@@ -87,7 +87,7 @@ function AdminShell() {
           <button
             type="button"
             onClick={handleLogout}
-            className="mt-auto flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-white/5"
+            className="mt-auto flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#f0a79e] transition-colors hover:bg-white/5"
           >
             <LogOut className="size-4 shrink-0" />
             <span>Log out</span>

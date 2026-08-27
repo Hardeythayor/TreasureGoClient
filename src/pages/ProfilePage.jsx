@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { FieldError } from '@/components/ui/field-error'
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { useAuth } from '@/context/AuthContext'
 import { ApiError } from '@/lib/api'
+import { getFieldErrors } from '@/lib/formErrors'
 
 function initialsFor(name) {
   if (!name) return '?'
@@ -38,6 +40,7 @@ function ProfilePage() {
 
   const [editOpen, setEditOpen] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', username: '', country: '' })
+  const [fieldErrors, setFieldErrors] = useState({})
   const [saving, setSaving] = useState(false)
 
   if (!user?.name) {
@@ -51,11 +54,25 @@ function ProfilePage() {
       username: user.username ?? '',
       country: user.country ?? '',
     })
+    setFieldErrors({})
     setEditOpen(true)
+  }
+
+  function updateField(field) {
+    return (e) => {
+      setForm((f) => ({ ...f, [field]: e.target.value }))
+      setFieldErrors((prev) => {
+        if (!prev[field]) return prev
+        const next = { ...prev }
+        delete next[field]
+        return next
+      })
+    }
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
+    setFieldErrors({})
     setSaving(true)
     try {
       await updateProfile(form)
@@ -63,11 +80,15 @@ function ProfilePage() {
       setEditOpen(false)
     } catch (err) {
       const reachedBackend = err instanceof ApiError && err.status > 0
-      toast.error(
-        reachedBackend
-          ? err.message
-          : 'Unable to reach the server. Please check your connection and try again.',
-      )
+      const fields = getFieldErrors(err)
+      setFieldErrors(fields)
+      if (Object.keys(fields).length === 0) {
+        toast.error(
+          reachedBackend
+            ? err.message
+            : 'Unable to reach the server. Please check your connection and try again.',
+        )
+      }
     } finally {
       setSaving(false)
     }
@@ -133,8 +154,9 @@ function ProfilePage() {
                 id="profile-name"
                 required
                 value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={updateField('name')}
               />
+              <FieldError message={fieldErrors.name} />
             </div>
 
             <div className="space-y-1">
@@ -145,8 +167,9 @@ function ProfilePage() {
                 id="profile-username"
                 required
                 value={form.username}
-                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                onChange={updateField('username')}
               />
+              <FieldError message={fieldErrors.username} />
             </div>
 
             <div className="space-y-1">
@@ -158,8 +181,9 @@ function ProfilePage() {
                 type="email"
                 required
                 value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                onChange={updateField('email')}
               />
+              <FieldError message={fieldErrors.email} />
             </div>
 
             <div className="space-y-1">
@@ -170,8 +194,9 @@ function ProfilePage() {
                 id="profile-country"
                 required
                 value={form.country}
-                onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
+                onChange={updateField('country')}
               />
+              <FieldError message={fieldErrors.country} />
             </div>
 
             <DialogFooter className="mt-2">

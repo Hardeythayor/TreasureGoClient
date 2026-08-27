@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { FieldError } from '@/components/ui/field-error'
 import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
@@ -26,12 +27,15 @@ import {
 import TreasureLocationPicker, { DEFAULT_CENTER } from '@/components/admin/TreasureLocationPicker'
 import { useAdminTreasures } from '@/context/AdminTreasuresContext'
 import { useSubscriptionTiers } from '@/context/SubscriptionTiersContext'
+import { getFieldErrors } from '@/lib/formErrors'
 
 function formatLocation(location) {
   return `${location.lat.toFixed(4)}° N, ${location.lng.toFixed(4)}° E`
 }
 
 const EMPTY_FORM = { name: '', subscriptionTierId: '' }
+
+const FIELD_KEY_MAP = { subscriptionTierId: 'subscription_tier_id' }
 
 const selectClass =
   'h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -57,6 +61,7 @@ function AdminTreasuresPage() {
   const [editingId, setEditingId] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [fieldErrors, setFieldErrors] = useState({})
   const [region, setRegion] = useState('')
   const [location, setLocation] = useState(DEFAULT_CENTER)
 
@@ -87,6 +92,7 @@ function AdminTreasuresPage() {
   function openCreate() {
     setEditingId(null)
     setForm(EMPTY_FORM)
+    setFieldErrors({})
     setRegion('')
     setLocation(DEFAULT_CENTER)
     setFormOpen(true)
@@ -96,10 +102,24 @@ function AdminTreasuresPage() {
   function openEdit(treasure) {
     setEditingId(treasure.id)
     setForm({ name: treasure.name, subscriptionTierId: treasure.subscriptionTierId })
+    setFieldErrors({})
     setRegion(treasure.region)
     setLocation(treasure.location)
     setFormOpen(true)
     loadTierOptions()
+  }
+
+  function updateField(field) {
+    return (e) => {
+      setForm((f) => ({ ...f, [field]: e.target.value }))
+      const backendKey = FIELD_KEY_MAP[field] ?? field
+      setFieldErrors((prev) => {
+        if (!prev[backendKey]) return prev
+        const next = { ...prev }
+        delete next[backendKey]
+        return next
+      })
+    }
   }
 
   async function handleDelete(treasure) {
@@ -129,6 +149,7 @@ function AdminTreasuresPage() {
       toast.error('Search for a place above to set the region before saving.')
       return
     }
+    setFieldErrors({})
     setSubmitting(true)
     try {
       const payload = { name: form.name, region, subscriptionTierId: form.subscriptionTierId, location }
@@ -142,7 +163,11 @@ function AdminTreasuresPage() {
       }
       setFormOpen(false)
     } catch (err) {
-      toast.error(err?.message || 'Something went wrong. Please try again.')
+      const fields = getFieldErrors(err)
+      setFieldErrors(fields)
+      if (Object.keys(fields).length === 0) {
+        toast.error(err?.message || 'Something went wrong. Please try again.')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -255,9 +280,10 @@ function AdminTreasuresPage() {
                 id="treasure-name"
                 required
                 value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={updateField('name')}
                 placeholder="e.g. Emerald Vault"
               />
+              <FieldError message={fieldErrors.name} />
             </div>
 
             <div className="space-y-1">
@@ -269,7 +295,7 @@ function AdminTreasuresPage() {
                 required
                 disabled={tierOptionsLoading}
                 value={form.subscriptionTierId}
-                onChange={(e) => setForm((f) => ({ ...f, subscriptionTierId: e.target.value }))}
+                onChange={updateField('subscriptionTierId')}
                 className={selectClass}
               >
                 <option value="" disabled>
@@ -281,6 +307,7 @@ function AdminTreasuresPage() {
                   </option>
                 ))}
               </select>
+              <FieldError message={fieldErrors.subscription_tier_id} />
             </div>
 
             <div className="space-y-1">
@@ -296,6 +323,8 @@ function AdminTreasuresPage() {
                   {region || 'search for a place above to set this'}
                 </span>
               </p>
+              <FieldError message={fieldErrors.region} />
+              <FieldError message={fieldErrors.location} />
             </div>
 
             <DialogFooter className="mt-2">

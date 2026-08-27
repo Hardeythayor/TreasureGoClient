@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPatch, apiPut } from '@/lib/api'
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/lib/api'
 
 export function fetchAdminUsersRequest({ search, status, page } = {}) {
   const params = {}
@@ -23,4 +23,8 @@ export function deleteAdminUserRequest(id) {
 
 export function toggleAdminUserStatusRequest(id) {
   return apiPatch(`/admin/users/${id}/toggle-status`)
+}
+
+export function resetAdminUserPasswordRequest(id) {
+  return apiPost(`/admin/users/${id}/reset-password`)
 }

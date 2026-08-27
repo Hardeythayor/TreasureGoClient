@@ -4,6 +4,7 @@ import {
   deleteAdminUserRequest,
   fetchAdminUserRequest,
   fetchAdminUsersRequest,
+  resetAdminUserPasswordRequest,
   toggleAdminUserStatusRequest,
   updateAdminUserRequest,
 } from '@/services/adminUsersService'
@@ -293,6 +294,24 @@ export function AdminUsersProvider({ children }) {
     flipLocally()
   }, [])
 
+  // No local state changes on success (nothing about the user record
+  // changes) and no offline fallback makes sense — there's nothing
+  // meaningful to fake locally, so it just requires a real API.
+  const resetUserPassword = useCallback(async (id) => {
+    if (!isApiConfigured()) {
+      throw new Error('Resetting a password requires a connected server.')
+    }
+    try {
+      await resetAdminUserPasswordRequest(id)
+    } catch (err) {
+      const reachedBackend = err instanceof ApiError && err.status > 0
+      if (reachedBackend) throw err
+      throw new Error('Unable to reach the server. Please check your connection and try again.', {
+        cause: err,
+      })
+    }
+  }, [])
+
   return (
     <AdminUsersContext.Provider
       value={{
@@ -308,6 +327,7 @@ export function AdminUsersProvider({ children }) {
         updateUserBasicInfo,
         deleteUser,
         toggleUserStatus,
+        resetUserPassword,
       }}
     >
       {children}

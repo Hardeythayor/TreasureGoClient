@@ -2,10 +2,17 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { ApiError, isApiConfigured } from '@/lib/api'
 import { enablePushNotifications } from '@/lib/beams'
 import {
+  changePasswordRequest,
   fetchCurrentUserRequest,
+  forgotPasswordRequest,
   loginRequest,
   logoutRequest,
+  registerRequest,
+  resendEmailVerificationRequest,
+  resetPasswordRequest,
   updateProfileRequest,
+  verifyEmailRequest,
+  verifyResetCodeRequest,
 } from '@/services/authService'
 
 export const TEST_CREDENTIALS = {
@@ -26,6 +33,7 @@ const LOCAL_PROFILE = {
   country: 'Nigeria',
   status: 'active',
   createdAt: '2026-01-12T00:00:00.000000Z',
+  emailVerifiedAt: '2026-01-12T00:00:00.000000Z',
   totalTreasuresFound: 3,
   currentSubscription: {
     id: 'local-sub',
@@ -63,6 +71,7 @@ function normalizeProfile(data) {
     country: data.country ?? '',
     status: data.status ?? '',
     createdAt: data.created_at ?? '',
+    emailVerifiedAt: data.email_verified_at ?? null,
     totalTreasuresFound: Number(data.total_treasures_found ?? 0),
     currentSubscription: sub
       ? {
@@ -153,10 +162,70 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const session = await authenticate(email, password, 'user')
+    // Persisted before fetchProfile() runs — the axios interceptor reads the
+    // token straight from localStorage, so GET /user needs it written first
+    // or it goes out unauthenticated.
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+    setUser(session)
     const profile = await fetchProfile()
     const fullSession = { ...session, ...profile }
     localStorage.setItem(SESSION_KEY, JSON.stringify(fullSession))
     setUser(fullSession)
+  }, [])
+
+  // Mirrors login(): on success the account is treated as authenticated the
+  // same way a fresh login is (same /register response shape as /login —
+  // { token, user: { email, roles } }). If the backend instead registers
+  // without returning auth credentials, this resolves to `false` so the
+  // caller can send the person to /login instead of assuming a session.
+  const register = useCallback(async (payload) => {
+    if (!isApiConfigured()) {
+      const session = { email: payload.email, token: null, roles: ['user'] }
+      const fullSession = {
+        ...session,
+        ...LOCAL_PROFILE,
+        name: payload.name,
+        username: payload.username,
+        country: payload.country,
+        // Starts unverified in offline/demo mode too, unlike the returning
+        // TEST_CREDENTIALS account — so a fresh local signup still walks
+        // through the verify-email flow instead of skipping it.
+        emailVerifiedAt: null,
+      }
+      localStorage.setItem(SESSION_KEY, JSON.stringify(fullSession))
+      setUser(fullSession)
+      return true
+    }
+
+    let result
+    try {
+      result = await registerRequest(payload)
+    } catch (err) {
+      const reachedBackend = err instanceof ApiError && err.status > 0
+      if (reachedBackend) {
+        throw new Error(err.message || 'Unable to create your account.', { cause: err })
+      }
+      throw new Error('Unable to reach the server. Please check your connection and try again.', {
+        cause: err,
+      })
+    }
+
+    if (!result?.token && !result?.user) {
+      return false
+    }
+
+    const session = {
+      email: result.user?.email ?? payload.email,
+      token: result.token ?? null,
+      roles: result.user?.roles ?? ['user'],
+    }
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+    setUser(session)
+    const profile = await fetchProfile()
+    const fullSession = { ...session, ...profile }
+    localStorage.setItem(SESSION_KEY, JSON.stringify(fullSession))
+    setUser(fullSession)
+    return true
   }, [])
 
   // Backfills the profile fields for a session that was persisted before
@@ -245,6 +314,119 @@ export function AuthProvider({ children }) {
     })
   }, [])
 
+  // No local state changes on success (nothing about the session changes),
+  // and no offline fallback makes sense for this one — there's nothing
+  // meaningful to fake locally, so it just requires a real API.
+  const changePassword = useCallback(async (payload) => {
+    if (!isApiConfigured()) {
+      throw new Error('Changing your password requires a connected server.')
+    }
+    try {
+      await changePasswordRequest(payload)
+    } catch (err) {
+      const reachedBackend = err instanceof ApiError && err.status > 0
+      if (reachedBackend) throw err
+      throw new Error('Unable to reach the server. Please check your connection and try again.', {
+        cause: err,
+      })
+    }
+  }, [])
+
+  // The offline fallback marks the local session verified immediately —
+  // there's no real code to check against in demo mode, so any submission
+  // "succeeds", letting the demo flow move on rather than dead-end.
+  const verifyEmail = useCallback(async (code) => {
+    function markVerified() {
+      setUser((prev) => {
+        if (!prev) return prev
+        const next = { ...prev, emailVerifiedAt: new Date().toISOString() }
+        localStorage.setItem(SESSION_KEY, JSON.stringify(next))
+        return next
+      })
+    }
+
+    if (!isApiConfigured()) {
+      markVerified()
+      return
+    }
+
+    try {
+      await verifyEmailRequest(code)
+    } catch (err) {
+      const reachedBackend = err instanceof ApiError && err.status > 0
+      if (reachedBackend) throw err
+      throw new Error('Unable to reach the server. Please check your connection and try again.', {
+        cause: err,
+      })
+    }
+    markVerified()
+  }, [])
+
+  // No local state changes on success and no meaningful offline fallback —
+  // there's no real email to resend to in demo mode, so it's a no-op there.
+  const resendVerificationCode = useCallback(async () => {
+    if (!isApiConfigured()) return
+    try {
+      await resendEmailVerificationRequest()
+    } catch (err) {
+      const reachedBackend = err instanceof ApiError && err.status > 0
+      if (reachedBackend) throw err
+      throw new Error('Unable to reach the server. Please check your connection and try again.', {
+        cause: err,
+      })
+    }
+  }, [])
+
+  // Unauthenticated flow — no session exists yet to update either way, and
+  // no meaningful offline fallback beyond "pretend it succeeded" since
+  // there's no real email to send a code to in demo mode.
+  const requestPasswordReset = useCallback(async (email) => {
+    if (!isApiConfigured()) return
+    try {
+      await forgotPasswordRequest(email)
+    } catch (err) {
+      const reachedBackend = err instanceof ApiError && err.status > 0
+      if (reachedBackend) throw err
+      throw new Error('Unable to reach the server. Please check your connection and try again.', {
+        cause: err,
+      })
+    }
+  }, [])
+
+  // Same as requestPasswordReset — unauthenticated, no session to update.
+  // Returns the reset_token the next step (resetPassword) needs to send
+  // back; the offline fallback fabricates one so the demo flow can carry on.
+  const verifyResetCode = useCallback(async (email, code) => {
+    if (!isApiConfigured()) return 'local-reset-token'
+    let result
+    try {
+      result = await verifyResetCodeRequest(email, code)
+    } catch (err) {
+      const reachedBackend = err instanceof ApiError && err.status > 0
+      if (reachedBackend) throw err
+      throw new Error('Unable to reach the server. Please check your connection and try again.', {
+        cause: err,
+      })
+    }
+    return result?.reset_token ?? result?.resetToken ?? result?.data?.reset_token ?? ''
+  }, [])
+
+  // Same as requestPasswordReset — unauthenticated, no session to update,
+  // and the offline fallback just pretends the reset succeeded so the demo
+  // flow can carry on to the login page.
+  const resetPassword = useCallback(async (payload) => {
+    if (!isApiConfigured()) return
+    try {
+      await resetPasswordRequest(payload)
+    } catch (err) {
+      const reachedBackend = err instanceof ApiError && err.status > 0
+      if (reachedBackend) throw err
+      throw new Error('Unable to reach the server. Please check your connection and try again.', {
+        cause: err,
+      })
+    }
+  }, [])
+
   const adminLogin = useCallback(async (email, password) => {
     const session = await authenticate(email, password, 'admin')
     localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
@@ -265,7 +447,22 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, login, logout, updateProfile, admin, adminLogin, adminLogout }}
+      value={{
+        user,
+        login,
+        register,
+        logout,
+        updateProfile,
+        changePassword,
+        verifyEmail,
+        resendVerificationCode,
+        requestPasswordReset,
+        verifyResetCode,
+        resetPassword,
+        admin,
+        adminLogin,
+        adminLogout,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { FieldError } from '@/components/ui/field-error'
 import { Switch } from '@/components/ui/switch'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -25,6 +26,7 @@ import {
   TableCell,
 } from '@/components/ui/table'
 import { useSubscriptionTiers } from '@/context/SubscriptionTiersContext'
+import { getFieldErrors } from '@/lib/formErrors'
 
 const EMPTY_FORM = {
   name: '',
@@ -34,6 +36,8 @@ const EMPTY_FORM = {
   type: 'free',
   status: 'active',
 }
+
+const FIELD_KEY_MAP = { validityDays: 'validity', rewardAmount: 'reward_amount' }
 
 const selectClass =
   'h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -51,6 +55,7 @@ function AdminSubscriptionTiersPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [fieldErrors, setFieldErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
 
   // Debounced so typing in the search box doesn't fire a request per
@@ -70,6 +75,7 @@ function AdminSubscriptionTiersPage() {
   function openCreate() {
     setEditingId(null)
     setForm(EMPTY_FORM)
+    setFieldErrors({})
     setFormOpen(true)
   }
 
@@ -83,11 +89,26 @@ function AdminSubscriptionTiersPage() {
       type: tier.type,
       status: tier.status,
     })
+    setFieldErrors({})
     setFormOpen(true)
+  }
+
+  function updateField(field) {
+    return (e) => {
+      setForm((f) => ({ ...f, [field]: e.target.value }))
+      const backendKey = FIELD_KEY_MAP[field] ?? field
+      setFieldErrors((prev) => {
+        if (!prev[backendKey]) return prev
+        const next = { ...prev }
+        delete next[backendKey]
+        return next
+      })
+    }
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
+    setFieldErrors({})
     setSubmitting(true)
     try {
       if (editingId) {
@@ -99,7 +120,11 @@ function AdminSubscriptionTiersPage() {
       }
       setFormOpen(false)
     } catch (err) {
-      toast.error(err?.message || 'Something went wrong. Please try again.')
+      const fields = getFieldErrors(err)
+      setFieldErrors(fields)
+      if (Object.keys(fields).length === 0) {
+        toast.error(err?.message || 'Something went wrong. Please try again.')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -258,9 +283,10 @@ function AdminSubscriptionTiersPage() {
                 id="tier-name"
                 required
                 value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={updateField('name')}
                 placeholder="e.g. Explorer Pass"
               />
+              <FieldError message={fieldErrors.name} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -275,9 +301,10 @@ function AdminSubscriptionTiersPage() {
                   step="1"
                   required
                   value={form.amount}
-                  onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                  onChange={updateField('amount')}
                   placeholder="e.g. 25"
                 />
+                <FieldError message={fieldErrors.amount} />
               </div>
 
               <div className="space-y-1">
@@ -291,9 +318,10 @@ function AdminSubscriptionTiersPage() {
                   step="1"
                   required
                   value={form.validityDays}
-                  onChange={(e) => setForm((f) => ({ ...f, validityDays: e.target.value }))}
+                  onChange={updateField('validityDays')}
                   placeholder="e.g. 30"
                 />
+                <FieldError message={fieldErrors.validity} />
               </div>
             </div>
 
@@ -308,9 +336,10 @@ function AdminSubscriptionTiersPage() {
                 step="1"
                 required
                 value={form.rewardAmount}
-                onChange={(e) => setForm((f) => ({ ...f, rewardAmount: e.target.value }))}
+                onChange={updateField('rewardAmount')}
                 placeholder="e.g. 15"
               />
+              <FieldError message={fieldErrors.reward_amount} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -321,12 +350,13 @@ function AdminSubscriptionTiersPage() {
                 <select
                   id="tier-type"
                   value={form.type}
-                  onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+                  onChange={updateField('type')}
                   className={`${selectClass} w-full`}
                 >
                   <option value="free">Free</option>
                   <option value="premium">Premium</option>
                 </select>
+                <FieldError message={fieldErrors.type} />
               </div>
 
               <div className="space-y-1">
@@ -336,12 +366,13 @@ function AdminSubscriptionTiersPage() {
                 <select
                   id="tier-status"
                   value={form.status}
-                  onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+                  onChange={updateField('status')}
                   className={`${selectClass} w-full`}
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
+                <FieldError message={fieldErrors.status} />
               </div>
             </div>
 

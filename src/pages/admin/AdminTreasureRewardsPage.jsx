@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { FieldError } from '@/components/ui/field-error'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
@@ -25,6 +26,7 @@ import {
 } from '@/components/ui/table'
 import { useAdminTreasureRewards } from '@/context/AdminTreasureRewardsContext'
 import { useSubscriptionTiers } from '@/context/SubscriptionTiersContext'
+import { getFieldErrors } from '@/lib/formErrors'
 
 const selectClass =
   'h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -55,6 +57,7 @@ function AdminTreasureRewardsPage() {
   const [rewardDialogOpen, setRewardDialogOpen] = useState(false)
   const [rewardTarget, setRewardTarget] = useState(null)
   const [amazonLink, setAmazonLink] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
   const [sendingReward, setSendingReward] = useState(false)
 
   useEffect(() => {
@@ -110,18 +113,24 @@ function AdminTreasureRewardsPage() {
   function openSendReward(reward) {
     setRewardTarget(reward)
     setAmazonLink('')
+    setFieldErrors({})
     setRewardDialogOpen(true)
   }
 
   async function handleSendReward(e) {
     e.preventDefault()
+    setFieldErrors({})
     setSendingReward(true)
     try {
       await sendReward(rewardTarget, amazonLink)
       toast.success(`Reward sent for "${rewardTarget.treasureName}".`)
       setRewardDialogOpen(false)
     } catch (err) {
-      toast.error(err?.message || 'Something went wrong. Please try again.')
+      const fields = getFieldErrors(err)
+      setFieldErrors(fields)
+      if (Object.keys(fields).length === 0) {
+        toast.error(err?.message || 'Something went wrong. Please try again.')
+      }
     } finally {
       setSendingReward(false)
     }
@@ -322,9 +331,13 @@ function AdminTreasureRewardsPage() {
                 type="url"
                 required
                 value={amazonLink}
-                onChange={(e) => setAmazonLink(e.target.value)}
+                onChange={(e) => {
+                  setAmazonLink(e.target.value)
+                  setFieldErrors((prev) => (prev.amazon_link ? {} : prev))
+                }}
                 placeholder="https://www.amazon.com/gc/..."
               />
+              <FieldError message={fieldErrors.amazon_link} />
             </div>
 
             <DialogFooter className="mt-2">

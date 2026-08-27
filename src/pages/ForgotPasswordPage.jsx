@@ -1,25 +1,30 @@
 import { useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router'
-import { Shield } from 'lucide-react'
-import { useAuth } from '@/context/AuthContext'
+import { useNavigate } from 'react-router'
+import { toast } from 'sonner'
+import { KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PasswordInput } from '@/components/ui/password-input'
 import { FieldError } from '@/components/ui/field-error'
+import { useAuth } from '@/context/AuthContext'
 import { getFieldErrors } from '@/lib/formErrors'
 
-function AdminLoginPage() {
-  const { admin, adminLogin } = useAuth()
+function ForgotPasswordPage() {
+  const { requestPasswordReset } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
 
-  if (admin) {
-    return <Navigate to={location.state?.from?.pathname ?? '/admin'} replace />
+  function handleEmailChange(e) {
+    setEmail(e.target.value)
+    if (fieldErrors.email) {
+      setFieldErrors((prev) => {
+        const next = { ...prev }
+        delete next.email
+        return next
+      })
+    }
   }
 
   async function handleSubmit(event) {
@@ -28,8 +33,9 @@ function AdminLoginPage() {
     setFieldErrors({})
     setSubmitting(true)
     try {
-      await adminLogin(email, password)
-      navigate(location.state?.from?.pathname ?? '/admin', { replace: true })
+      await requestPasswordReset(email)
+      toast.success('Verification code sent to your email.')
+      navigate('/verify-reset-code', { state: { email }, replace: true })
     } catch (err) {
       const fields = getFieldErrors(err)
       setFieldErrors(fields)
@@ -42,12 +48,18 @@ function AdminLoginPage() {
   return (
     <div className="flex min-h-screen">
       <div className="hidden w-full max-w-md flex-col items-center justify-center gap-4 bg-navy-deep p-10 text-center text-white md:flex">
-        <Shield className="size-9 text-gold-light" />
-        <h1 className="font-heading text-2xl font-bold">Admin Control Center</h1>
+        <KeyRound className="size-9 text-gold-light" />
+        <h1 className="font-heading text-2xl font-bold">Forgot your password?</h1>
+        <p className="max-w-56 text-sm text-white/70">
+          No worries — we&apos;ll send a code to your email to reset it.
+        </p>
       </div>
       <div className="flex flex-1 items-center justify-center p-8">
         <form className="w-full max-w-sm" onSubmit={handleSubmit}>
-          <h2 className="mb-5 font-heading text-xl font-semibold">Admin Log In</h2>
+          <h2 className="mb-1.5 font-heading text-xl font-semibold">Reset your password</h2>
+          <p className="mb-5 text-sm text-muted-foreground">
+            Enter the email address linked to your account and we&apos;ll send you a 6-digit code.
+          </p>
           {error && (
             <div className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
               {error}
@@ -55,41 +67,32 @@ function AdminLoginPage() {
           )}
           <div className="mb-4 space-y-1.5">
             <label className="text-xs font-semibold text-navy-mid" htmlFor="email">
-              Email
+              Email address
             </label>
             <Input
               id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="user@treasurego.com"
+              type="email"
+              placeholder="amaka@mail.com"
+              required
               autoComplete="email"
+              value={email}
+              onChange={handleEmailChange}
             />
             <FieldError message={fieldErrors.email} />
           </div>
-          <div className="mb-4 space-y-1.5">
-            <label className="text-xs font-semibold text-navy-mid" htmlFor="password">
-              Password
-            </label>
-            <PasswordInput
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
-            <FieldError message={fieldErrors.password} />
-          </div>
-          <label className="mb-4 flex items-center gap-2 text-xs text-neutral">
-            <input type="checkbox" className="size-3.5" />
-            Remember me
-          </label>
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? 'Logging in…' : 'Log In'}
+            {submitting ? 'Sending code…' : 'Send Reset Code'}
           </Button>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Remembered your password?{' '}
+            <a className="font-semibold text-navy-mid" href="/login">
+              Log in
+            </a>
+          </p>
         </form>
       </div>
     </div>
   )
 }
 
-export default AdminLoginPage
+export default ForgotPasswordPage

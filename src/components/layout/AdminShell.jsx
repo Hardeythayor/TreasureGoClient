@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router'
-import { Compass, LayoutDashboard, Users, Box, CreditCard, Gift, Bell, Settings, Search, LogOut, Menu, X } from 'lucide-react'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router'
+import { Compass, LayoutDashboard, Users, Box, CreditCard, Gift, Inbox, Bell, Settings, Search, LogOut, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
+import { useAdminMessagesFeed } from '@/context/AdminMessagesFeedContext'
 import NotificationBell from '@/components/layout/NotificationBell'
 
 const NAV_ITEMS = [
@@ -11,12 +12,14 @@ const NAV_ITEMS = [
   { to: '/admin/treasures', label: 'Treasures', icon: Box },
   { to: '/admin/subscription-tiers', label: 'Subscription Tiers', icon: CreditCard },
   { to: '/admin/treasure-rewards', label: 'Treasure Rewards', icon: Gift },
+  { to: '/admin/messages', label: 'Messages', icon: Inbox },
   { to: '/admin/notifications', label: 'Notifications', icon: Bell },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ]
 
 function AdminShell() {
   const { adminLogout } = useAuth()
+  const { unreadCount } = useAdminMessagesFeed()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -107,12 +110,9 @@ function AdminShell() {
             Search…
           </div>
           <div className="ml-auto flex items-center gap-3.5 sm:ml-0">
-            {/* No admin inbox/count source yet — the admin messages page is
-                still to be designed, so this is a placeholder with no badge
-                or click destination for now. */}
-            <span className="text-navy-mid">
-              <NotificationBell count={0} />
-            </span>
+            <Link to="/admin/messages" aria-label="Messages" className="text-navy-mid">
+              <NotificationBell count={unreadCount} />
+            </Link>
             <div className="flex size-8 items-center justify-center rounded-full bg-linear-to-br from-gold-light to-gold text-xs font-bold text-navy-deep">
               AD
             </div>

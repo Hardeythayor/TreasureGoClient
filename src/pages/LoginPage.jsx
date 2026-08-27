@@ -4,6 +4,7 @@ import { Compass } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 
 function LoginPage() {
   const { user, login } = useAuth()
@@ -65,9 +66,8 @@ function LoginPage() {
             <label className="text-xs font-semibold text-navy-mid" htmlFor="password">
               Password
             </label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"

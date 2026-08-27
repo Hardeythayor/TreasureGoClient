@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Send, Search, X } from 'lucide-react'
+import { Send, Search, X, ChevronLeft, ChevronRight, Eye } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import {
   Table,
   TableHeader,
@@ -16,6 +23,7 @@ import {
 import RichTextEditor from '@/components/admin/RichTextEditor'
 import { useAdminUsers } from '@/context/AdminUsersContext'
 import { useSubscriptionTiers } from '@/context/SubscriptionTiersContext'
+import { useAdminMessages } from '@/context/AdminMessagesContext'
 import { ApiError, isApiConfigured } from '@/lib/api'
 import { sendNotificationRequest } from '@/services/adminNotificationsService'
 
@@ -35,12 +43,6 @@ const selectClass =
 
 const labelClass = 'text-xs font-semibold text-navy-mid'
 
-const history = [
-  { to: 'All Users', type: 'Announcement', date: 'Jul 10, 2026' },
-  { to: 'Amaka Obi', type: 'Congratulatory', date: 'Jul 09, 2026' },
-  { to: '$100 Tier', type: 'Reward Instructions', date: 'Jul 08, 2026' },
-]
-
 function isMessageEmpty(html) {
   return !html || html.replace(/<[^>]*>/g, '').trim() === ''
 }
@@ -48,8 +50,12 @@ function isMessageEmpty(html) {
 function AdminNotificationsPage() {
   const { searchUsers } = useAdminUsers()
   const { fetchActiveTierOptions } = useSubscriptionTiers()
+  const { messages: sentMessages, pagination, loading: historyLoading, fetchSentMessages } =
+    useAdminMessages()
 
   const [tierOptions, setTierOptions] = useState([])
+  const [historyPage, setHistoryPage] = useState(1)
+  const [viewTarget, setViewTarget] = useState(null)
 
   useEffect(() => {
     fetchActiveTierOptions()
@@ -57,6 +63,12 @@ function AdminNotificationsPage() {
       .catch((err) => toast.error(err?.message || 'Failed to load subscription tiers.'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    fetchSentMessages({ page: historyPage }).catch((err) => {
+      toast.error(err?.message || 'Failed to load sent history.')
+    })
+  }, [historyPage, fetchSentMessages])
 
   const [recipientType, setRecipientType] = useState('all')
   const [tierId, setTierId] = useState('')
@@ -157,6 +169,11 @@ function AdminNotificationsPage() {
       setMessageType('announcement')
       setTitle('')
       setMessage('')
+      if (historyPage === 1) {
+        fetchSentMessages({ page: 1 }).catch(() => {})
+      } else {
+        setHistoryPage(1)
+      }
     } catch (err) {
       const reachedBackend = err instanceof ApiError && err.status > 0
       toast.error(
@@ -327,26 +344,109 @@ function AdminNotificationsPage() {
                 <TableHead>Type</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {history.map((h, i) => (
-                <TableRow key={h.to + h.date}>
-                  <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                  <TableCell>{h.to}</TableCell>
-                  <TableCell>
-                    <Badge variant="warning">{h.type}</Badge>
-                  </TableCell>
-                  <TableCell>{h.date}</TableCell>
-                  <TableCell>
-                    <Badge variant="success">Delivered</Badge>
+              {historyLoading && sentMessages.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    Loading sent history…
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : sentMessages.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    No messages sent yet.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                sentMessages.map((h, i) => (
+                  <TableRow key={h.id}>
+                    <TableCell className="text-muted-foreground">
+                      {(pagination.currentPage - 1) * pagination.perPage + i + 1}
+                    </TableCell>
+                    <TableCell>{h.to}</TableCell>
+                    <TableCell>
+                      <Badge variant="warning">{h.messageTypeLabel}</Badge>
+                    </TableCell>
+                    <TableCell>{h.date}</TableCell>
+                    <TableCell>
+                      <Badge variant="success">Sent</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        type="button"
+                        aria-label="View message"
+                        onClick={() => setViewTarget(h)}
+                        className="text-navy-mid hover:text-navy-deep"
+                      >
+                        <Eye className="size-4" />
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
+
+          {pagination.total > 0 && (
+            <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                Showing {(pagination.currentPage - 1) * pagination.perPage + 1}–
+                {Math.min(pagination.currentPage * pagination.perPage, pagination.total)} of{' '}
+                {pagination.total}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  disabled={pagination.currentPage <= 1}
+                  onClick={() => setHistoryPage((p) => p - 1)}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <span>
+                  Page {pagination.currentPage} of {pagination.lastPage}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  disabled={pagination.currentPage >= pagination.lastPage}
+                  onClick={() => setHistoryPage((p) => p + 1)}
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <Dialog open={viewTarget != null} onOpenChange={(open) => !open && setViewTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{viewTarget?.title}</DialogTitle>
+            <DialogDescription>
+              To {viewTarget?.to} · {viewTarget?.date}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="warning">{viewTarget?.messageTypeLabel}</Badge>
+            <Badge variant="success">Sent</Badge>
+          </div>
+
+          <div
+            className="text-sm leading-relaxed text-foreground [&_a]:text-navy-mid [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5"
+            dangerouslySetInnerHTML={{ __html: viewTarget?.message ?? '' }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

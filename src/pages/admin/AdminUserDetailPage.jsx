@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { FieldError } from '@/components/ui/field-error'
 import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
@@ -25,6 +26,7 @@ import {
   TableCell,
 } from '@/components/ui/table'
 import { useAdminUsers } from '@/context/AdminUsersContext'
+import { getFieldErrors } from '@/lib/formErrors'
 
 // Endpoint for this isn't wired yet — kept as a static placeholder until
 // it's provided.
@@ -46,11 +48,14 @@ function AdminUserDetailPage() {
     updateUserBasicInfo,
     deleteUser,
     toggleUserStatus,
+    resetUserPassword,
   } = useAdminUsers()
 
   const [formOpen, setFormOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({ name: '', username: '', email: '', country: '' })
+  const [fieldErrors, setFieldErrors] = useState({})
+  const [resettingPassword, setResettingPassword] = useState(false)
 
   useEffect(() => {
     fetchUserById(id).catch(() => {})
@@ -64,18 +69,36 @@ function AdminUserDetailPage() {
       email: user.email,
       country: user.country,
     })
+    setFieldErrors({})
     setFormOpen(true)
+  }
+
+  function updateField(field) {
+    return (e) => {
+      setForm((f) => ({ ...f, [field]: e.target.value }))
+      setFieldErrors((prev) => {
+        if (!prev[field]) return prev
+        const next = { ...prev }
+        delete next[field]
+        return next
+      })
+    }
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
+    setFieldErrors({})
     setSubmitting(true)
     try {
       await updateUserBasicInfo(user.id, form)
       toast.success('User updated.')
       setFormOpen(false)
     } catch (err) {
-      toast.error(err?.message || 'Something went wrong. Please try again.')
+      const fields = getFieldErrors(err)
+      setFieldErrors(fields)
+      if (Object.keys(fields).length === 0) {
+        toast.error(err?.message || 'Something went wrong. Please try again.')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -98,6 +121,19 @@ function AdminUserDetailPage() {
       toast.success(`"${user.name}" is now ${user.status === 'Active' ? 'Inactive' : 'Active'}.`)
     } catch (err) {
       toast.error(err?.message || 'Something went wrong. Please try again.')
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!window.confirm(`Reset the password for "${user.name}"?`)) return
+    setResettingPassword(true)
+    try {
+      await resetUserPassword(user.id)
+      toast.success(`Password reset for "${user.name}".`)
+    } catch (err) {
+      toast.error(err?.message || 'Something went wrong. Please try again.')
+    } finally {
+      setResettingPassword(false)
     }
   }
 
@@ -128,8 +164,10 @@ function AdminUserDetailPage() {
           variant="outline"
           size="sm"
           className="border-navy-mid text-navy-mid hover:bg-navy-mid/5"
+          onClick={handleResetPassword}
+          disabled={resettingPassword}
         >
-          Manage Subscription
+          {resettingPassword ? 'Resetting…' : 'Reset Password'}
         </Button>
         <Button size="sm">Send Message</Button>
       </div>
@@ -220,8 +258,9 @@ function AdminUserDetailPage() {
                 id="user-name"
                 required
                 value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={updateField('name')}
               />
+              <FieldError message={fieldErrors.name} />
             </div>
 
             <div className="space-y-1">
@@ -232,8 +271,9 @@ function AdminUserDetailPage() {
                 id="user-username"
                 required
                 value={form.username}
-                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                onChange={updateField('username')}
               />
+              <FieldError message={fieldErrors.username} />
             </div>
 
             <div className="space-y-1">
@@ -245,8 +285,9 @@ function AdminUserDetailPage() {
                 type="email"
                 required
                 value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                onChange={updateField('email')}
               />
+              <FieldError message={fieldErrors.email} />
             </div>
 
             <div className="space-y-1">
@@ -256,8 +297,9 @@ function AdminUserDetailPage() {
               <Input
                 id="user-country"
                 value={form.country}
-                onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
+                onChange={updateField('country')}
               />
+              <FieldError message={fieldErrors.country} />
             </div>
 
             <DialogFooter className="mt-2">

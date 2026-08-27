@@ -5,6 +5,10 @@ import RequireAuth from '@/components/auth/RequireAuth'
 import RequireAdminAuth from '@/components/auth/RequireAdminAuth'
 import LoginPage from '@/pages/LoginPage'
 import SignupPage from '@/pages/SignupPage'
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
+import VerifyResetCodePage from '@/pages/VerifyResetCodePage'
+import ResetPasswordPage from '@/pages/ResetPasswordPage'
+import VerifyEmailPage from '@/pages/VerifyEmailPage'
 import HomePage from '@/pages/HomePage'
 import MessagesPage from '@/pages/MessagesPage'
 import TreasuresPage from '@/pages/TreasuresPage'
@@ -23,6 +27,7 @@ import AdminUserDetailPage from '@/pages/admin/AdminUserDetailPage'
 import AdminTreasuresPage from '@/pages/admin/AdminTreasuresPage'
 import AdminSubscriptionTiersPage from '@/pages/admin/AdminSubscriptionTiersPage'
 import AdminTreasureRewardsPage from '@/pages/admin/AdminTreasureRewardsPage'
+import AdminMessagesPage from '@/pages/admin/AdminMessagesPage'
 import AdminNotificationsPage from '@/pages/admin/AdminNotificationsPage'
 import AdminSettingsPage from '@/pages/admin/AdminSettingsPage'
 
@@ -31,8 +36,12 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/verify-reset-code" element={<VerifyResetCodePage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       <Route element={<RequireAuth />}>
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/" element={<HomePage />} />
         <Route path="/hunt/:id/found" element={<CelebrationPage />} />
         <Route path="/hunt/:id/reward" element={<RewardDetailPage />} />
@@ -58,6 +67,7 @@ function AppRoutes() {
           <Route path="treasures" element={<AdminTreasuresPage />} />
           <Route path="subscription-tiers" element={<AdminSubscriptionTiersPage />} />
           <Route path="treasure-rewards" element={<AdminTreasureRewardsPage />} />
+          <Route path="messages" element={<AdminMessagesPage />} />
           <Route path="notifications" element={<AdminNotificationsPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
         </Route>

@@ -8,6 +8,8 @@ import { SubscriptionTiersProvider } from '@/context/SubscriptionTiersContext'
 import { AdminTreasuresProvider } from '@/context/AdminTreasuresContext'
 import { AdminUsersProvider } from '@/context/AdminUsersContext'
 import { AdminTreasureRewardsProvider } from '@/context/AdminTreasureRewardsContext'
+import { AdminMessagesProvider } from '@/context/AdminMessagesContext'
+import { AdminMessagesFeedProvider } from '@/context/AdminMessagesFeedContext'
 import { RewardsProvider } from '@/context/RewardsContext'
 import { MessagesProvider } from '@/context/MessagesContext'
 import { Toaster } from '@/components/ui/sonner'
@@ -24,13 +26,17 @@ function App() {
                 <AdminTreasuresProvider>
                   <AdminUsersProvider>
                     <AdminTreasureRewardsProvider>
-                      <RewardsProvider>
-                        <MessagesProvider>
-                          <HuntProvider>
-                            <AppRoutes />
-                          </HuntProvider>
-                        </MessagesProvider>
-                      </RewardsProvider>
+                      <AdminMessagesProvider>
+                        <AdminMessagesFeedProvider>
+                          <RewardsProvider>
+                            <MessagesProvider>
+                              <HuntProvider>
+                                <AppRoutes />
+                              </HuntProvider>
+                            </MessagesProvider>
+                          </RewardsProvider>
+                        </AdminMessagesFeedProvider>
+                      </AdminMessagesProvider>
                     </AdminTreasureRewardsProvider>
                   </AdminUsersProvider>
                 </AdminTreasuresProvider>

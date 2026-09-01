@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
-import { Compass, LayoutDashboard, Users, Box, CreditCard, Gift, Inbox, Bell, Settings, Search, LogOut, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Users, Box, CreditCard, Gift, Inbox, Bell, Settings, Search, LogOut, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 import { useAdminMessagesFeed } from '@/context/AdminMessagesFeedContext'
@@ -50,11 +50,11 @@ function AdminShell() {
           'md:static md:w-52 md:translate-x-0 md:shadow-none',
         )}
       >
-        <div className="flex items-center justify-between gap-2 px-4 py-5">
-          <div className="flex items-center gap-2">
-            <Compass className="size-5 shrink-0 text-gold-light" />
-            <span className="font-heading text-sm font-semibold text-white">
-              Treasure Go
+        <div className="flex items-center justify-between gap-2 px-4 py-4">
+          <div className="flex items-center gap-1">
+            <img src="/assets/green_bg_logo.png" alt="Treasure Go" className="h-9 w-9 shrink-0 object-contain" />
+            <span className="text-sm font-bold tracking-wide whitespace-nowrap uppercase">
+              <span className="text-white">Treasure</span> <span className="text-gold">Go</span>
             </span>
           </div>
           <button

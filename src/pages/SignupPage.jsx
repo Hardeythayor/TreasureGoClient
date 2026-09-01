@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import PasswordChecklist from 'react-password-checklist'
-import { Compass } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
@@ -86,15 +85,22 @@ function SignupPage() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="hidden w-full max-w-md flex-col items-center justify-center gap-4 bg-navy-deep p-10 text-center text-white md:flex">
-        <Compass className="size-9 text-gold-light" />
-        <h1 className="font-heading text-2xl font-bold">Treasure Go</h1>
-        <p className="max-w-56 text-sm text-white/70">
-          Every hunt tells a story. Start yours today.
-        </p>
+      <div className="hidden w-full max-w-md flex-col items-center justify-center bg-navy-deep p-10 text-center text-white md:flex">
+        <img
+          src="/assets/splash_green.png"
+          alt="Treasure Go — Hunt. Find. Win."
+          className="w-full max-w-xs"
+        />
       </div>
       <div className="flex flex-1 items-center justify-center p-8">
         <form className="w-full max-w-sm" onSubmit={handleSubmit}>
+          <div className="mb-6 flex justify-center md:hidden">
+            <img
+              src="/assets/splash_white.png"
+              alt="Treasure Go — Hunt. Find. Win."
+              className="w-full max-w-45"
+            />
+          </div>
           <h2 className="mb-5 font-heading text-xl font-semibold">
             Create your account
           </h2>

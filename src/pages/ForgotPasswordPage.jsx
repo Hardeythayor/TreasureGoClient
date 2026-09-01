@@ -56,6 +56,13 @@ function ForgotPasswordPage() {
       </div>
       <div className="flex flex-1 items-center justify-center p-8">
         <form className="w-full max-w-sm" onSubmit={handleSubmit}>
+          <div className="mb-6 flex justify-center md:hidden">
+            <img
+              src="/assets/splash_white.png"
+              alt="Treasure Go — Hunt. Find. Win."
+              className="w-full max-w-45"
+            />
+          </div>
           <h2 className="mb-1.5 font-heading text-xl font-semibold">Reset your password</h2>
           <p className="mb-5 text-sm text-muted-foreground">
             Enter the email address linked to your account and we&apos;ll send you a 6-digit code.

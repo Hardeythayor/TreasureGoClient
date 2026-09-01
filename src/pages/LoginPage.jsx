@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
-import { Compass } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
+import SplashScreen from '@/components/ui/splash-screen'
 
 function LoginPage() {
   const { user, login } = useAuth()
@@ -14,8 +14,26 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [showSplash, setShowSplash] = useState(false)
 
-  if (user) {
+  // Checked before the `user` redirect below — once login() succeeds, user
+  // becomes truthy on the very next render, and without this the splash
+  // would never get a chance to show before that redirect fires.
+  if (showSplash) {
+    return (
+      <SplashScreen
+        onFinish={() => navigate(location.state?.from?.pathname ?? '/', { replace: true })}
+      />
+    )
+  }
+
+  // `login()` sets the AuthContext user mid-flight (before it awaits
+  // fetchProfile()), which re-renders this component with `user` already
+  // truthy while handleSubmit is still running and showSplash hasn't been
+  // set yet — `submitting` is still true at that exact moment, so checking
+  // it here is what stops that intermediate render from redirecting early
+  // and skipping the splash.
+  if (user && !submitting) {
     return <Navigate to={location.state?.from?.pathname ?? '/'} replace />
   }
 
@@ -25,7 +43,7 @@ function LoginPage() {
     setSubmitting(true)
     try {
       await login(email, password)
-      navigate(location.state?.from?.pathname ?? '/', { replace: true })
+      setShowSplash(true)
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.')
     } finally {
@@ -35,15 +53,22 @@ function LoginPage() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="hidden w-full max-w-md flex-col items-center justify-center gap-4 bg-navy-deep p-10 text-center text-white md:flex">
-        <Compass className="size-9 text-gold-light" />
-        <h1 className="font-heading text-2xl font-bold">Welcome back</h1>
-        <p className="max-w-56 text-sm text-white/70">
-          Your next treasure is already on the map.
-        </p>
+      <div className="hidden w-full max-w-md flex-col items-center justify-center bg-navy-deep p-10 text-center text-white md:flex">
+        <img
+          src="/assets/splash_green.png"
+          alt="Treasure Go — Hunt. Find. Win."
+          className="w-full max-w-xs"
+        />
       </div>
       <div className="flex flex-1 items-center justify-center p-8">
         <form className="w-full max-w-sm" onSubmit={handleSubmit}>
+          <div className="mb-6 flex justify-center md:hidden">
+            <img
+              src="/assets/splash_white.png"
+              alt="Treasure Go — Hunt. Find. Win."
+              className="w-full max-w-45"
+            />
+          </div>
           <h2 className="mb-5 font-heading text-xl font-semibold">Log in</h2>
           {error && (
             <div className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">

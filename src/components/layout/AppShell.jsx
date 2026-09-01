@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
-import { Compass, Menu, ArrowLeft } from 'lucide-react'
+import { Menu, ArrowLeft } from 'lucide-react'
 import SideMenuDrawer from '@/components/layout/SideMenuDrawer'
 import QuickNavPill from '@/components/layout/QuickNavPill'
 import NotificationBell from '@/components/layout/NotificationBell'
@@ -38,13 +38,13 @@ function AppShell() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <header className="flex shrink-0 items-center gap-3 bg-sidebar px-4 py-3.5 text-white">
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-gold-light to-gold text-navy-deep">
-          <Compass className="size-4" />
+      <header className="flex shrink-0 items-center gap-3 bg-sidebar px-4 py-2.5 text-white">
+        <div className="flex shrink-0 items-center gap-1">
+          <img src="/assets/green_bg_logo.png" alt="Treasure Go" className="h-9 w-9 shrink-0 object-contain" />
+          <span className="text-sm font-bold tracking-wide whitespace-nowrap uppercase">
+            <span className="text-white">Treasure</span> <span className="text-gold">Go</span>
+          </span>
         </div>
-        <span className="font-heading text-sm font-semibold whitespace-nowrap">
-          Treasure Go
-        </span>
 
         {title && (
           <>

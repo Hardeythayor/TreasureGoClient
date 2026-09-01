@@ -7,7 +7,7 @@ import {
   AdvancedMarker,
   useMap,
 } from '@vis.gl/react-google-maps'
-import { Compass, MoreVertical, MapPin, X as XIcon } from 'lucide-react'
+import { MoreVertical, MapPin, X as XIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SideMenuDrawer from '@/components/layout/SideMenuDrawer'
 import DirectionalPad from '@/components/home/DirectionalPad'
@@ -160,9 +160,11 @@ function HomePage() {
         <DirectionalPad position={treasurePosition} onMove={setTreasurePosition} />
       </APIProvider>
 
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-2 rounded-full bg-navy-deep/55 py-2 pr-4 pl-2.5 text-white backdrop-blur-sm">
-        <Compass className="size-5 text-gold-light" />
-        <span className="font-heading text-sm font-bold">Treasure Go</span>
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-1 rounded-full bg-navy-deep/55 py-1 pr-4 pl-1.5 text-white backdrop-blur-sm">
+        <img src="/assets/green_bg_logo.png" alt="Treasure Go" className="h-7 w-7 shrink-0 object-contain" />
+        <span className="text-sm font-bold tracking-wide whitespace-nowrap uppercase">
+          <span className="text-white">Treasure</span> <span className="text-gold">Go</span>
+        </span>
       </div>
 
       {activeHunt && (

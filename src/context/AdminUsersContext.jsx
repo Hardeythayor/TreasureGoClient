@@ -91,6 +91,8 @@ export function AdminUsersProvider({ children }) {
   const [userDetail, setUserDetail] = useState(null)
   const [userDetailLoading, setUserDetailLoading] = useState(false)
   const [userDetailError, setUserDetailError] = useState('')
+  const [userStats, setUserStats] = useState({ total: 0, active: 0, inactive: 0 })
+  const [userStatsLoading, setUserStatsLoading] = useState(false)
   const filtersRef = useRef(DEFAULT_FILTERS)
 
   // Same rule as the other admin modules: once the API is configured, a
@@ -123,6 +125,47 @@ export function AdminUsersProvider({ children }) {
       setPagination(nextPagination)
     } finally {
       setLoading(false)
+    }
+  }, [])
+
+  // For the dashboard's KPI cards — three lightweight requests (page 1 of
+  // each status filter, read only for `pagination.total`) rather than
+  // fetchUsers, so it doesn't clobber the shared `users`/`pagination` state
+  // another page (AdminUsersPage) may currently be showing.
+  const fetchUserStats = useCallback(async () => {
+    setUserStatsLoading(true)
+    try {
+      if (!isApiConfigured()) {
+        setUserStats({
+          total: LOCAL_USERS.length,
+          active: LOCAL_USERS.filter((u) => normalizeStatus(u.status) === 'Active').length,
+          inactive: LOCAL_USERS.filter((u) => normalizeStatus(u.status) === 'Inactive').length,
+        })
+        return
+      }
+
+      let allResult, activeResult, inactiveResult
+      try {
+        ;[allResult, activeResult, inactiveResult] = await Promise.all([
+          fetchAdminUsersRequest({ status: 'all', page: 1 }),
+          fetchAdminUsersRequest({ status: 'active', page: 1 }),
+          fetchAdminUsersRequest({ status: 'inactive', page: 1 }),
+        ])
+      } catch (err) {
+        const reachedBackend = err instanceof ApiError && err.status > 0
+        if (reachedBackend) throw err
+        throw new Error('Unable to reach the server. Please check your connection and try again.', {
+          cause: err,
+        })
+      }
+
+      setUserStats({
+        total: normalizeUsersPage(allResult).pagination.total,
+        active: normalizeUsersPage(activeResult).pagination.total,
+        inactive: normalizeUsersPage(inactiveResult).pagination.total,
+      })
+    } finally {
+      setUserStatsLoading(false)
     }
   }, [])
 
@@ -319,6 +362,9 @@ export function AdminUsersProvider({ children }) {
         pagination,
         loading,
         fetchUsers,
+        userStats,
+        userStatsLoading,
+        fetchUserStats,
         searchUsers,
         userDetail,
         userDetailLoading,

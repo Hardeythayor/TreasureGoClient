@@ -249,20 +249,7 @@ function AdminTreasuresPage() {
       </Card>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent
-          className="sm:max-w-lg"
-          onInteractOutside={(e) => {
-            // The Google Places suggestion dropdown (.pac-container) is
-            // appended straight to document.body, outside this dialog's DOM
-            // subtree — without this, Radix treats a click on it as an
-            // outside interaction and closes the dialog before Google's own
-            // mousedown-based selection handler gets to run, so the pick
-            // silently does nothing.
-            if (e.target instanceof Element && e.target.closest('.pac-container')) {
-              e.preventDefault()
-            }
-          }}
-        >
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Edit Treasure' : 'Create New Treasure'}</DialogTitle>
             <DialogDescription>

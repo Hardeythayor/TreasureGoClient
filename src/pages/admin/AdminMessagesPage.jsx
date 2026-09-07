@@ -30,7 +30,7 @@ function AdminMessagesPage() {
 
   function handleOpen(message) {
     if (!message.unread) return
-    markRead(message.id).catch((err) => {
+    markRead(message).catch((err) => {
       toast.error(err?.message || 'Failed to mark message as read.')
     })
   }

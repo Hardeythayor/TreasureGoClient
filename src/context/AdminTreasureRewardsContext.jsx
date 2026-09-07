@@ -1,47 +1,13 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import {
   fetchTreasureHuntsRequest,
   fetchTreasureRewardsAnalyticsRequest,
   sendRewardRequest,
 } from '@/services/treasureRewardsService'
 
-// Local-only mock data, used only when no API base URL is configured at
-// all (pure offline/demo mode) — every real action below is wired to a
-// real endpoint now.
-const DEFAULT_REWARDS = [
-  { id: 'reward-1', userId: '1', treasureId: '11', treasureName: 'Emerald Vault', tierId: 'tier-voyager-pass', founderName: 'Amaka Obi', founderEmail: 'amaka@mail.com', dateFound: '2026-06-14', status: 'rewarded' },
-  { id: 'reward-2', userId: '2', treasureId: '12', treasureName: 'Copper Compass', tierId: 'tier-elite-pass', founderName: 'David Chen', founderEmail: 'david@mail.com', dateFound: '2026-07-02', status: 'pending' },
-  { id: 'reward-3', userId: '3', treasureId: '13', treasureName: 'Sunken Lagoon Chest', tierId: 'tier-elite-pass', founderName: 'Tolu Bankole', founderEmail: 'tolu@mail.com', dateFound: '2026-05-27', status: 'rewarded' },
-  { id: 'reward-4', userId: '4', treasureId: '14', treasureName: 'Merchant’s Cache', tierId: 'tier-adventurer-pass', founderName: 'Sarah Kim', founderEmail: 'sarah@mail.com', dateFound: '2026-07-10', status: 'pending' },
-  { id: 'reward-5', userId: '1', treasureId: '15', treasureName: 'Beachcomber’s Box', tierId: 'tier-starter-pass', founderName: 'Amaka Obi', founderEmail: 'amaka@mail.com', dateFound: '2026-08-01', status: 'pending' },
-  { id: 'reward-6', userId: '2', treasureId: '16', treasureName: 'Forgotten Cargo Crate', tierId: 'tier-explorer-pass', founderName: 'David Chen', founderEmail: 'david@mail.com', dateFound: '2026-08-05', status: 'rewarded' },
-  { id: 'reward-7', userId: '4', treasureId: '17', treasureName: 'Ikoyi Manor Vault', tierId: 'tier-legendary-pass', founderName: 'Sarah Kim', founderEmail: 'sarah@mail.com', dateFound: '2026-06-20', status: 'rewarded' },
-  { id: 'reward-8', userId: '3', treasureId: '18', treasureName: 'Old Rail Cache', tierId: 'tier-explorer-pass', founderName: 'Tolu Bankole', founderEmail: 'tolu@mail.com', dateFound: '2026-07-18', status: 'pending' },
-  { id: 'reward-9', userId: '1', treasureId: '19', treasureName: 'Deepwater Cache', tierId: 'tier-legendary-pass', founderName: 'Amaka Obi', founderEmail: 'amaka@mail.com', dateFound: '2026-08-12', status: 'pending' },
-  { id: 'reward-10', userId: '2', treasureId: '20', treasureName: 'Conservancy Stash', tierId: 'tier-adventurer-pass', founderName: 'David Chen', founderEmail: 'david@mail.com', dateFound: '2026-06-30', status: 'rewarded' },
-]
-
 const DEFAULT_FILTERS = { search: '', tierId: 'all', status: 'all', dateFrom: '', dateTo: '' }
 const DEFAULT_PAGINATION = { currentPage: 1, lastPage: 1, total: 0, perPage: 30 }
-
-function filterRewardsLocally(all, { search = '', tierId = 'all', status = 'all', dateFrom = '', dateTo = '' } = {}) {
-  return all.filter((r) => {
-    if (search) {
-      const q = search.toLowerCase()
-      const matches =
-        r.treasureName.toLowerCase().includes(q) ||
-        r.founderName.toLowerCase().includes(q) ||
-        r.founderEmail.toLowerCase().includes(q)
-      if (!matches) return false
-    }
-    if (tierId !== 'all' && r.tierId !== tierId) return false
-    if (status !== 'all' && r.status !== status) return false
-    if (dateFrom && r.dateFound < dateFrom) return false
-    if (dateTo && r.dateFound > dateTo) return false
-    return true
-  })
-}
 
 // The real record nests the founder under `user` and the treasure (name,
 // region, subscription_tier_id) under `treasure` — `reward_status` (not the
@@ -104,20 +70,11 @@ export function AdminTreasureRewardsProvider({ children }) {
   const [stats, setStats] = useState({ totalFound: 0, totalRewarded: 0, totalPending: 0 })
   const filtersRef = useRef(DEFAULT_FILTERS)
 
-  // Same rule as the other admin modules: once the API is configured, a
-  // failure is thrown (not swallowed) so the page can show it. The local
-  // list/count is only used when no API is configured at all.
+  // A failure is thrown (not swallowed) so the page can show it.
   const fetchRewards = useCallback(async (filters = filtersRef.current) => {
     filtersRef.current = filters
     setLoading(true)
     try {
-      if (!isApiConfigured()) {
-        const filtered = filterRewardsLocally(DEFAULT_REWARDS, filters)
-        setRewards(filtered)
-        setPagination({ currentPage: 1, lastPage: 1, total: filtered.length, perPage: filtered.length || 30 })
-        return
-      }
-
       let result
       try {
         result = await fetchTreasureHuntsRequest(filters)
@@ -138,16 +95,6 @@ export function AdminTreasureRewardsProvider({ children }) {
   }, [])
 
   const fetchStats = useCallback(async () => {
-    if (!isApiConfigured()) {
-      const all = DEFAULT_REWARDS
-      setStats({
-        totalFound: all.length,
-        totalRewarded: all.filter((r) => r.status === 'rewarded').length,
-        totalPending: all.filter((r) => r.status === 'pending').length,
-      })
-      return
-    }
-
     let result
     try {
       result = await fetchTreasureRewardsAnalyticsRequest()
@@ -166,21 +113,11 @@ export function AdminTreasureRewardsProvider({ children }) {
     })
   }, [])
 
-  // Same rule as the other admin modules: once the API is configured, a
-  // reachable backend's rejection is surfaced, and only a genuinely
-  // unreachable backend falls back to a local-only status flip. Refetches
-  // the current page/filters on success so the row (and stats, next time
-  // they're loaded) reflect real server state rather than an optimistic
-  // guess.
+  // Refetches the current page/filters on success so the row (and stats,
+  // next time they're loaded) reflect real server state rather than an
+  // optimistic guess.
   const sendReward = useCallback(
     async (reward, amazonLink) => {
-      if (!isApiConfigured()) {
-        setRewards((prev) =>
-          prev.map((r) => (r.id === reward.id ? { ...r, status: 'rewarded', rewardLink: amazonLink } : r)),
-        )
-        return
-      }
-
       try {
         await sendRewardRequest({
           userId: reward.userId,

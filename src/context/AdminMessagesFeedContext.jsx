@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { subscribeToUserNotifications } from '@/lib/pusher'
 import {
@@ -20,35 +20,6 @@ import {
 // axios interceptor attaches for the current route (admin vs customer
 // session), not anything this context does differently.
 const DEFAULT_PAGINATION = { currentPage: 1, lastPage: 1, total: 0, perPage: 30 }
-
-// Local-only mock data, used only when no API base URL is configured at all
-// (pure offline/demo mode).
-const LOCAL_MESSAGES = [
-  {
-    id: 'admin-seed-1',
-    icon: 'trophy',
-    title: 'Treasure found! 🏆',
-    message: 'Amaka Obi just found the Lagos Lagoon Chest.',
-    time: '5m ago',
-    unread: true,
-  },
-  {
-    id: 'admin-seed-2',
-    icon: 'bell',
-    title: 'New user signed up',
-    message: 'Chidi Eze created an account and subscribed to the $100 tier.',
-    time: '1h ago',
-    unread: true,
-  },
-  {
-    id: 'admin-seed-3',
-    icon: 'gift',
-    title: 'Reward pending',
-    message: '2 treasure rewards are awaiting an Amazon gift card link.',
-    time: 'Yesterday',
-    unread: false,
-  },
-]
 
 function iconFor(messageType) {
   if (messageType === 'reward_delivered' || messageType === 'reward_pending') return 'gift'
@@ -74,6 +45,9 @@ function normalizeNotification(data) {
   const msg = data.message ?? {}
   return {
     id: data.id != null ? String(data.id) : '',
+    // Read requests are scoped to the receiver, not the notification itself
+    // — PATCH /notifications/{id}/read actually expects this receiver_id.
+    receiverId: data.receiver_id != null ? String(data.receiver_id) : '',
     icon: iconFor(msg.message_type),
     title: msg.title ?? '',
     message: msg.message ?? '',
@@ -113,9 +87,7 @@ export function AdminMessagesFeedProvider({ children }) {
   const [messages, setMessages] = useState([])
   const [pagination, setPagination] = useState(DEFAULT_PAGINATION)
   const [loading, setLoading] = useState(false)
-  const [unreadCount, setUnreadCount] = useState(() =>
-    isApiConfigured() ? 0 : LOCAL_MESSAGES.filter((m) => m.unread).length,
-  )
+  const [unreadCount, setUnreadCount] = useState(0)
   const filtersRef = useRef({ page: 1 })
   const currentPageRef = useRef(1)
 
@@ -128,7 +100,6 @@ export function AdminMessagesFeedProvider({ children }) {
   // itself is showing. Used from markRead/deleteMessage (regular async
   // calls, not effects).
   const refreshUnreadCount = useCallback(async () => {
-    if (!isApiConfigured()) return
     try {
       const result = await fetchNotificationsRequest({ page: 1 })
       const { items } = normalizeNotificationsPage(result)
@@ -142,7 +113,7 @@ export function AdminMessagesFeedProvider({ children }) {
   // refreshUnreadCount — react-hooks/set-state-in-effect can't see past an
   // `await` inside a same-file async function call.
   useEffect(() => {
-    if (!admin || !isApiConfigured()) return
+    if (!admin) return
     fetchNotificationsRequest({ page: 1 })
       .then((result) => {
         const { items } = normalizeNotificationsPage(result)
@@ -162,6 +133,7 @@ export function AdminMessagesFeedProvider({ children }) {
     function handleRealtimeMessage(payload) {
       const newMessage = {
         id: payload.id != null ? String(payload.id) : '',
+        receiverId: payload.receiver_id != null ? String(payload.receiver_id) : '',
         icon: iconFor(payload.message_type),
         title: payload.title ?? '',
         message: payload.message ?? '',
@@ -190,17 +162,6 @@ export function AdminMessagesFeedProvider({ children }) {
     filtersRef.current = filters
     setLoading(true)
     try {
-      if (!isApiConfigured()) {
-        setMessages(LOCAL_MESSAGES)
-        setPagination({
-          currentPage: 1,
-          lastPage: 1,
-          total: LOCAL_MESSAGES.length,
-          perPage: LOCAL_MESSAGES.length || 30,
-        })
-        return
-      }
-
       let result
       try {
         result = await fetchNotificationsRequest(filters)
@@ -220,18 +181,9 @@ export function AdminMessagesFeedProvider({ children }) {
     }
   }, [])
 
-  const markRead = useCallback(async (id) => {
-    function applyLocally() {
-      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, unread: false } : m)))
-    }
-
-    if (!isApiConfigured()) {
-      applyLocally()
-      return
-    }
-
+  const markRead = useCallback(async ({ id, receiverId }) => {
     try {
-      await markNotificationReadRequest(id)
+      await markNotificationReadRequest(receiverId)
     } catch (err) {
       const reachedBackend = err instanceof ApiError && err.status > 0
       if (reachedBackend) throw err
@@ -239,21 +191,11 @@ export function AdminMessagesFeedProvider({ children }) {
         cause: err,
       })
     }
-    applyLocally()
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, unread: false } : m)))
     refreshUnreadCount()
   }, [refreshUnreadCount])
 
   const deleteMessage = useCallback(async (id) => {
-    function applyLocally() {
-      setMessages((prev) => prev.filter((m) => m.id !== id))
-      setPagination((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }))
-    }
-
-    if (!isApiConfigured()) {
-      applyLocally()
-      return
-    }
-
     try {
       await deleteNotificationRequest(id)
     } catch (err) {
@@ -263,17 +205,12 @@ export function AdminMessagesFeedProvider({ children }) {
         cause: err,
       })
     }
-    applyLocally()
+    setMessages((prev) => prev.filter((m) => m.id !== id))
+    setPagination((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }))
     refreshUnreadCount()
   }, [refreshUnreadCount])
 
   const markAllRead = useCallback(async () => {
-    if (!isApiConfigured()) {
-      setMessages((prev) => prev.map((m) => ({ ...m, unread: false })))
-      setUnreadCount(0)
-      return
-    }
-
     try {
       await markAllNotificationsReadRequest()
     } catch (err) {
@@ -288,13 +225,6 @@ export function AdminMessagesFeedProvider({ children }) {
   }, [])
 
   const deleteAll = useCallback(async () => {
-    if (!isApiConfigured()) {
-      setMessages([])
-      setPagination({ currentPage: 1, lastPage: 1, total: 0, perPage: 30 })
-      setUnreadCount(0)
-      return
-    }
-
     try {
       await deleteAllNotificationsRequest()
     } catch (err) {

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import {
   createTierRequest,
   deleteTierRequest,
@@ -8,36 +8,7 @@ import {
   updateTierRequest,
 } from '@/services/subscriptionTiersService'
 
-const TIERS_KEY = 'treasure-go:admin-subscription-tiers'
-
-const DEFAULT_TIERS = [
-  { id: 'tier-starter-pass', name: 'Starter Pass', amount: 10, validityDays: 30, rewardAmount: 5, type: 'free', status: 'active', createdAt: 'Jan 01, 2026' },
-  { id: 'tier-explorer-pass', name: 'Explorer Pass', amount: 25, validityDays: 30, rewardAmount: 15, type: 'free', status: 'active', createdAt: 'Jan 01, 2026' },
-  { id: 'tier-adventurer-pass', name: 'Adventurer Pass', amount: 50, validityDays: 30, rewardAmount: 25, type: 'free', status: 'active', createdAt: 'Jan 01, 2026' },
-  { id: 'tier-voyager-pass', name: 'Voyager Pass', amount: 75, validityDays: 30, rewardAmount: 40, type: 'premium', status: 'active', createdAt: 'Jan 01, 2026' },
-  { id: 'tier-elite-pass', name: 'Elite Pass', amount: 100, validityDays: 30, rewardAmount: 60, type: 'premium', status: 'active', createdAt: 'Jan 01, 2026' },
-  { id: 'tier-legendary-pass', name: 'Legendary Pass', amount: 200, validityDays: 30, rewardAmount: 120, type: 'premium', status: 'active', createdAt: 'Jan 01, 2026' },
-]
-
 const DEFAULT_FILTERS = { search: '', type: 'all', status: 'all' }
-
-function readLocalTiers() {
-  try {
-    const raw = localStorage.getItem(TIERS_KEY)
-    return raw ? JSON.parse(raw) : DEFAULT_TIERS
-  } catch {
-    return DEFAULT_TIERS
-  }
-}
-
-function filterLocally(all, { search = '', type = 'all', status = 'all' } = {}) {
-  return all.filter((t) => {
-    if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false
-    if (type !== 'all' && t.type !== type) return false
-    if (status !== 'all' && t.status !== status) return false
-    return true
-  })
-}
 
 function slugify(name) {
   return name
@@ -115,26 +86,11 @@ export function SubscriptionTiersProvider({ children }) {
   const [loading, setLoading] = useState(false)
   const filtersRef = useRef(DEFAULT_FILTERS)
 
-  const persistLocal = useCallback((next) => {
-    localStorage.setItem(TIERS_KEY, JSON.stringify(next))
-    return next
-  }, [])
-
-  // Search/type/status filtering happens server-side via query params once
-  // the API is configured; in local/offline mode the same filters are
-  // applied to the full stored list instead. Failures once the API is
-  // configured are thrown (not swallowed) so the page can show them —
-  // silently falling back here would show stale/wrong data with no
-  // indication anything went wrong.
+  // Failures are thrown (not swallowed) so the page can show them.
   const fetchTiers = useCallback(async (filters = filtersRef.current) => {
     filtersRef.current = filters
     setLoading(true)
     try {
-      if (!isApiConfigured()) {
-        setTiers(filterLocally(readLocalTiers(), filters))
-        return
-      }
-
       let result
       try {
         result = await fetchTiersRequest(filters)
@@ -155,31 +111,8 @@ export function SubscriptionTiersProvider({ children }) {
     }
   }, [])
 
-  // The local-only tier is a pure offline/demo fallback for when no API base
-  // URL is configured at all. Once a real API is configured, any failure —
-  // unreachable or an authoritative rejection — is thrown with a message
-  // describing what happened, instead of silently creating the tier locally
-  // and showing a fake "created" success for something the real API never
-  // actually accepted.
   const createTier = useCallback(
     async (form) => {
-      if (!isApiConfigured()) {
-        const all = readLocalTiers()
-        const tier = {
-          id: `tier-${slugify(form.name)}-${Date.now()}`,
-          name: form.name,
-          amount: Number(form.amount),
-          validityDays: Number(form.validityDays),
-          rewardAmount: Number(form.rewardAmount),
-          type: form.type,
-          status: form.status,
-          createdAt: formatToday(),
-        }
-        persistLocal([...all, tier])
-        setTiers(filterLocally([...all, tier], filtersRef.current))
-        return tier
-      }
-
       let result
       try {
         result = await createTierRequest(form)
@@ -194,33 +127,11 @@ export function SubscriptionTiersProvider({ children }) {
       await fetchTiers(filtersRef.current)
       return tier
     },
-    [persistLocal, fetchTiers],
+    [fetchTiers],
   )
 
-  // Same rule as createTier: once the API is configured, a reachable
-  // backend's rejection is surfaced (not swallowed), and only a genuinely
-  // unreachable backend falls back to the local-only update.
   const updateTier = useCallback(
     async (id, patch) => {
-      if (!isApiConfigured()) {
-        const all = readLocalTiers().map((t) =>
-          t.id === id
-            ? {
-                ...t,
-                ...patch,
-                amount: patch.amount != null ? Number(patch.amount) : t.amount,
-                validityDays:
-                  patch.validityDays != null ? Number(patch.validityDays) : t.validityDays,
-                rewardAmount:
-                  patch.rewardAmount != null ? Number(patch.rewardAmount) : t.rewardAmount,
-              }
-            : t,
-        )
-        persistLocal(all)
-        setTiers(filterLocally(all, filtersRef.current))
-        return
-      }
-
       try {
         await updateTierRequest(id, patch)
       } catch (err) {
@@ -232,21 +143,11 @@ export function SubscriptionTiersProvider({ children }) {
       }
       await fetchTiers(filtersRef.current)
     },
-    [persistLocal, fetchTiers],
+    [fetchTiers],
   )
 
-  // Same rule as createTier/updateTier/toggleStatus: once the API is
-  // configured, a reachable backend's rejection is surfaced, and only a
-  // genuinely unreachable backend falls back to the local-only delete.
   const deleteTier = useCallback(
     async (id) => {
-      if (!isApiConfigured()) {
-        const all = readLocalTiers().filter((t) => t.id !== id)
-        persistLocal(all)
-        setTiers(filterLocally(all, filtersRef.current))
-        return
-      }
-
       try {
         await deleteTierRequest(id)
       } catch (err) {
@@ -258,23 +159,11 @@ export function SubscriptionTiersProvider({ children }) {
       }
       await fetchTiers(filtersRef.current)
     },
-    [persistLocal, fetchTiers],
+    [fetchTiers],
   )
 
-  // Same rule as createTier/updateTier: once the API is configured, a
-  // reachable backend's rejection is surfaced, and only a genuinely
-  // unreachable backend falls back to the local-only toggle.
   const toggleStatus = useCallback(
     async (id) => {
-      if (!isApiConfigured()) {
-        const all = readLocalTiers().map((t) =>
-          t.id === id ? { ...t, status: t.status === 'active' ? 'inactive' : 'active' } : t,
-        )
-        persistLocal(all)
-        setTiers(filterLocally(all, filtersRef.current))
-        return
-      }
-
       try {
         await toggleTierStatusRequest(id)
       } catch (err) {
@@ -286,7 +175,7 @@ export function SubscriptionTiersProvider({ children }) {
       }
       await fetchTiers(filtersRef.current)
     },
-    [persistLocal, fetchTiers],
+    [fetchTiers],
   )
 
   // For dropdowns elsewhere (e.g. the treasure-creation form) that need the
@@ -294,10 +183,6 @@ export function SubscriptionTiersProvider({ children }) {
   // `tiers` view/state.
   const fetchActiveTierOptions = useCallback(async () => {
     const filters = { search: '', type: 'all', status: 'active' }
-    if (!isApiConfigured()) {
-      return filterLocally(readLocalTiers(), filters)
-    }
-
     try {
       const result = await fetchTiersRequest(filters)
       return normalizeTierList(result)

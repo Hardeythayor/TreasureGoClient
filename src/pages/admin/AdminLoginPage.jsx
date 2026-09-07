@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
-import { Shield } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,7 +41,11 @@ function AdminLoginPage() {
   return (
     <div className="flex min-h-screen">
       <div className="hidden w-full max-w-md flex-col items-center justify-center gap-4 bg-navy-deep p-10 text-center text-white md:flex">
-        <Shield className="size-9 text-gold-light" />
+        <img
+          src="/assets/green_bg_logo.png"
+          alt="Treasure Go"
+          className="h-16 w-16 object-contain"
+        />
         <h1 className="font-heading text-2xl font-bold">Admin Control Center</h1>
       </div>
       <div className="flex flex-1 items-center justify-center p-8">

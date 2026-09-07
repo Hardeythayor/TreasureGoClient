@@ -5,8 +5,8 @@ import { useMessages } from '@/context/MessagesContext'
 
 export const QUICK_NAV = [
   { to: '/messages', icon: MessageSquare, label: 'Messages' },
-  { to: '/', icon: MapPin, label: 'Hunt' },
-  { to: '/treasures', icon: ListChecks, label: 'Categories' },
+  { to: '/', icon: MapPin, label: 'Map' },
+  { to: '/treasures', icon: ListChecks, label: 'List' },
 ]
 
 // Shared by this pill and HomePage's own desktop vertical nav (both render

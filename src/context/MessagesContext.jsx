@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { subscribeToUserNotifications } from '@/lib/pusher'
 import {
@@ -12,35 +12,6 @@ import {
 } from '@/services/messagesFeedService'
 
 const DEFAULT_PAGINATION = { currentPage: 1, lastPage: 1, total: 0, perPage: 30 }
-
-// Local-only mock data, used only when no API base URL is configured at all
-// (pure offline/demo mode).
-const LOCAL_MESSAGES = [
-  {
-    id: 'seed-1',
-    icon: 'trophy',
-    title: 'You found it! 🏆',
-    message: 'Congratulations on finding the Lagos Lagoon Chest. Reward instructions are on the way.',
-    time: '2m ago',
-    unread: true,
-  },
-  {
-    id: 'seed-2',
-    icon: 'gift',
-    title: 'Reward delivered',
-    message: 'Your $50 gift card for Emerald Vault has been sent to your email.',
-    time: '1h ago',
-    unread: true,
-  },
-  {
-    id: 'seed-3',
-    icon: 'bell',
-    title: 'New treasures added',
-    message: '3 new treasures were just added to the $100 tier. Go hunt!',
-    time: 'Yesterday',
-    unread: false,
-  },
-]
 
 function iconFor(messageType) {
   if (messageType === 'reward_delivered') return 'gift'
@@ -70,6 +41,9 @@ function normalizeNotification(data) {
   const msg = data.message ?? {}
   return {
     id: data.id != null ? String(data.id) : '',
+    // Read requests are scoped to the receiver, not the notification itself
+    // — PATCH /notifications/{id}/read actually expects this receiver_id.
+    receiverId: data.receiver_id != null ? String(data.receiver_id) : '',
     icon: iconFor(msg.message_type),
     title: msg.title ?? '',
     message: msg.message ?? '',
@@ -109,12 +83,7 @@ export function MessagesProvider({ children }) {
   const [messages, setMessages] = useState([])
   const [pagination, setPagination] = useState(DEFAULT_PAGINATION)
   const [loading, setLoading] = useState(false)
-  // Offline mode never changes after mount, so its count is computed once
-  // here rather than via an effect — only the online path needs one, to
-  // fetch from the server.
-  const [unreadCount, setUnreadCount] = useState(() =>
-    isApiConfigured() ? 0 : LOCAL_MESSAGES.filter((m) => m.unread).length,
-  )
+  const [unreadCount, setUnreadCount] = useState(0)
   const filtersRef = useRef({ page: 1 })
   // Lets the realtime handler below know whether page 1 is what's actually
   // on screen right now, without needing `pagination` in its own effect's
@@ -137,7 +106,6 @@ export function MessagesProvider({ children }) {
   // same-file async-function restriction the mount effect hits doesn't
   // apply to them).
   const refreshUnreadCount = useCallback(async () => {
-    if (!isApiConfigured()) return
     try {
       const result = await fetchNotificationsRequest({ page: 1 })
       const { items } = normalizeNotificationsPage(result)
@@ -153,7 +121,7 @@ export function MessagesProvider({ children }) {
   // `refreshUnreadCount()` here even though the actual setState only
   // happens in a deferred continuation, same as this .then() callback.
   useEffect(() => {
-    if (!user || !isApiConfigured()) return
+    if (!user) return
     fetchNotificationsRequest({ page: 1 })
       .then((result) => {
         const { items } = normalizeNotificationsPage(result)
@@ -175,6 +143,7 @@ export function MessagesProvider({ children }) {
     function handleRealtimeMessage(payload) {
       const newMessage = {
         id: payload.id != null ? String(payload.id) : '',
+        receiverId: payload.receiver_id != null ? String(payload.receiver_id) : '',
         icon: iconFor(payload.message_type),
         title: payload.title ?? '',
         message: payload.message ?? '',
@@ -199,24 +168,11 @@ export function MessagesProvider({ children }) {
     return subscribeToUserNotifications(user.id, handleRealtimeMessage)
   }, [user?.id])
 
-  // Same rule as every other list fetch in this codebase: once the API is
-  // configured, a failure is thrown (not swallowed) so the page can show
-  // it. The local list is only used when no API is configured at all.
+  // A failure is thrown (not swallowed) so the page can show it.
   const fetchMessages = useCallback(async (filters = filtersRef.current) => {
     filtersRef.current = filters
     setLoading(true)
     try {
-      if (!isApiConfigured()) {
-        setMessages(LOCAL_MESSAGES)
-        setPagination({
-          currentPage: 1,
-          lastPage: 1,
-          total: LOCAL_MESSAGES.length,
-          perPage: LOCAL_MESSAGES.length || 30,
-        })
-        return
-      }
-
       let result
       try {
         result = await fetchNotificationsRequest(filters)
@@ -236,21 +192,9 @@ export function MessagesProvider({ children }) {
     }
   }, [])
 
-  // Same rule as the other write actions in this codebase: once the API is
-  // configured, a reachable backend's rejection is surfaced, and only a
-  // genuinely unreachable backend falls back to a local-only flip.
-  const markRead = useCallback(async (id) => {
-    function applyLocally() {
-      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, unread: false } : m)))
-    }
-
-    if (!isApiConfigured()) {
-      applyLocally()
-      return
-    }
-
+  const markRead = useCallback(async ({ id, receiverId }) => {
     try {
-      await markNotificationReadRequest(id)
+      await markNotificationReadRequest(receiverId)
     } catch (err) {
       const reachedBackend = err instanceof ApiError && err.status > 0
       if (reachedBackend) throw err
@@ -258,24 +202,11 @@ export function MessagesProvider({ children }) {
         cause: err,
       })
     }
-    applyLocally()
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, unread: false } : m)))
     refreshUnreadCount()
   }, [refreshUnreadCount])
 
-  // Same rule as the other write actions in this codebase: once the API is
-  // configured, a reachable backend's rejection is surfaced, and only a
-  // genuinely unreachable backend falls back to a local-only removal.
   const deleteMessage = useCallback(async (id) => {
-    function applyLocally() {
-      setMessages((prev) => prev.filter((m) => m.id !== id))
-      setPagination((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }))
-    }
-
-    if (!isApiConfigured()) {
-      applyLocally()
-      return
-    }
-
     try {
       await deleteNotificationRequest(id)
     } catch (err) {
@@ -285,21 +216,13 @@ export function MessagesProvider({ children }) {
         cause: err,
       })
     }
-    applyLocally()
+    setMessages((prev) => prev.filter((m) => m.id !== id))
+    setPagination((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }))
     refreshUnreadCount()
   }, [refreshUnreadCount])
 
-  // Same rule as the other write actions in this codebase: once the API is
-  // configured, a reachable backend's rejection is surfaced, and only a
-  // genuinely unreachable backend falls back to a local-only flip. Unlike
-  // markRead, this is a single bulk endpoint — no fan-out needed.
+  // Unlike markRead, this is a single bulk endpoint — no fan-out needed.
   const markAllRead = useCallback(async () => {
-    if (!isApiConfigured()) {
-      setMessages((prev) => prev.map((m) => ({ ...m, unread: false })))
-      setUnreadCount(0)
-      return
-    }
-
     try {
       await markAllNotificationsReadRequest()
     } catch (err) {
@@ -313,17 +236,10 @@ export function MessagesProvider({ children }) {
     setUnreadCount(0)
   }, [])
 
-  // Same rule as markAllRead — a single bulk endpoint deletes every
-  // notification, not just the current page, so the list and pagination
-  // both reset to empty rather than just dropping what's currently loaded.
+  // A single bulk endpoint deletes every notification, not just the current
+  // page, so the list and pagination both reset to empty rather than just
+  // dropping what's currently loaded.
   const deleteAll = useCallback(async () => {
-    if (!isApiConfigured()) {
-      setMessages([])
-      setPagination({ currentPage: 1, lastPage: 1, total: 0, perPage: 30 })
-      setUnreadCount(0)
-      return
-    }
-
     try {
       await deleteAllNotificationsRequest()
     } catch (err) {

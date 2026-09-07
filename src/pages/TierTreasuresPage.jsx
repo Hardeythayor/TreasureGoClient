@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router'
 import { toast } from 'sonner'
+import { Box } from 'lucide-react'
 import TreasureCard from '@/components/treasure/TreasureCard'
-import { treasures as FALLBACK_TREASURES } from '@/data/treasures'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useTreasureStatus } from '@/context/TreasureStatusContext'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { fetchTierTreasuresRequest } from '@/services/publicTreasuresService'
 
 function extractTreasureList(result) {
@@ -21,9 +22,6 @@ function normalizeTreasure(data) {
     description: '',
     region: data.region,
     location: data.location,
-    // The server's status is authoritative; the local (localStorage)
-    // isFound check is kept as a fallback bridge right after a hunt
-    // completes, same pattern used for subscription activation.
     serverFound: data.status === 'found',
   }
 }
@@ -35,14 +33,10 @@ function TierTreasuresPage() {
   // tiers sharing the same amount).
   const { tier } = useParams()
   const { isFound } = useTreasureStatus()
-  const [treasureList, setTreasureList] = useState(() =>
-    FALLBACK_TREASURES.filter((t) => t.tier === tier).map((t) => ({ ...t, serverFound: false })),
-  )
-  const [loading, setLoading] = useState(isApiConfigured())
+  const [treasureList, setTreasureList] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!isApiConfigured()) return
-
     let cancelled = false
 
     async function load() {
@@ -84,9 +78,11 @@ function TierTreasuresPage() {
       {loading && treasureList.length === 0 ? (
         <p className="text-sm text-muted-foreground">Loading treasures…</p>
       ) : treasureList.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No treasures have been added to this tier yet — check back soon.
-        </p>
+        <EmptyState
+          icon={Box}
+          title="No treasures yet"
+          description="The admin hasn't added any treasures to this tier yet — check back soon."
+        />
       ) : (
         <div className="space-y-2.5">
           {treasureList.map((treasure) => (

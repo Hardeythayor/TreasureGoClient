@@ -1,15 +1,12 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import PasswordChecklist from 'react-password-checklist'
 import { ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PasswordInput } from '@/components/ui/password-input'
 import { FieldError } from '@/components/ui/field-error'
 import { useAuth } from '@/context/AuthContext'
 import { getFieldErrors } from '@/lib/formErrors'
-
-const PASSWORD_RULES = ['minLength', 'capital', 'number', 'specialChar', 'match']
 
 function ResetPasswordPage() {
   const { resetPassword } = useAuth()
@@ -21,7 +18,6 @@ function ResetPasswordPage() {
 
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
-  const [passwordValid, setPasswordValid] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
@@ -44,8 +40,12 @@ function ResetPasswordPage() {
 
   async function handleSubmit(event) {
     event.preventDefault()
-    if (!passwordValid) {
-      setError('Please meet all password requirements.')
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+    if (password !== passwordConfirmation) {
+      setError('Passwords do not match.')
       return
     }
 
@@ -103,6 +103,7 @@ function ResetPasswordPage() {
               id="password"
               placeholder="••••••••"
               required
+              minLength={8}
               autoComplete="new-password"
               value={password}
               onChange={(e) => {
@@ -110,6 +111,7 @@ function ResetPasswordPage() {
                 clearFieldError('password')
               }}
             />
+            <p className="text-[11px] text-muted-foreground">Min 8 characters</p>
             <FieldError message={fieldErrors.password} />
           </div>
 
@@ -121,6 +123,7 @@ function ResetPasswordPage() {
               id="confirm"
               placeholder="••••••••"
               required
+              minLength={8}
               autoComplete="new-password"
               value={passwordConfirmation}
               onChange={(e) => {
@@ -129,20 +132,6 @@ function ResetPasswordPage() {
               }}
             />
             <FieldError message={fieldErrors.password_confirmation} />
-            {password && (
-              <PasswordChecklist
-                rules={PASSWORD_RULES}
-                minLength={8}
-                value={password}
-                valueAgain={passwordConfirmation}
-                onChange={setPasswordValid}
-                className="space-y-1"
-                itemClassName="text-[11px]"
-                iconSize={12}
-                validTextColor="#16a34a"
-                invalidTextColor="#71717a"
-              />
-            )}
           </div>
 
           <Button type="submit" className="w-full" disabled={submitting}>

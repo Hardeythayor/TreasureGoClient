@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { Menu, ArrowLeft } from 'lucide-react'
 import SideMenuDrawer from '@/components/layout/SideMenuDrawer'
-import QuickNavPill from '@/components/layout/QuickNavPill'
 import NotificationBell from '@/components/layout/NotificationBell'
 import { useMessages } from '@/context/MessagesContext'
 
@@ -87,7 +86,7 @@ function AppShell() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto pb-24 md:pb-0">
+        <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
 
@@ -97,8 +96,6 @@ function AppShell() {
           persistOnDesktop
         />
       </div>
-
-      <QuickNavPill />
     </div>
   )
 }

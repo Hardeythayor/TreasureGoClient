@@ -1,15 +1,12 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import PasswordChecklist from 'react-password-checklist'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
 import { FieldError } from '@/components/ui/field-error'
 import { useAuth } from '@/context/AuthContext'
 import { getFieldErrors } from '@/lib/formErrors'
-
-const PASSWORD_RULES = ['minLength', 'capital', 'number', 'specialChar', 'match']
 
 const EMPTY_FORM = {
   name: '',
@@ -31,7 +28,6 @@ function SignupPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
-  const [passwordValid, setPasswordValid] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   if (user) {
@@ -58,8 +54,12 @@ function SignupPage() {
 
   async function handleSubmit(event) {
     event.preventDefault()
-    if (!passwordValid) {
-      setError('Please meet all password requirements.')
+    if (form.password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+    if (form.password !== form.passwordConfirmation) {
+      setError('Passwords do not match.')
       return
     }
 
@@ -170,10 +170,12 @@ function SignupPage() {
               id="password"
               placeholder="••••••••"
               required
+              minLength={8}
               autoComplete="new-password"
               value={form.password}
               onChange={updateField('password')}
             />
+            <p className="text-[11px] text-muted-foreground">Min 8 characters</p>
             <FieldError message={fieldErrors.password} />
           </div>
           <div className="mb-4 space-y-1.5">
@@ -184,25 +186,12 @@ function SignupPage() {
               id="confirm"
               placeholder="••••••••"
               required
+              minLength={8}
               autoComplete="new-password"
               value={form.passwordConfirmation}
               onChange={updateField('passwordConfirmation')}
             />
             <FieldError message={fieldErrors.password_confirmation} />
-            {form.password && (
-              <PasswordChecklist
-                rules={PASSWORD_RULES}
-                minLength={8}
-                value={form.password}
-                valueAgain={form.passwordConfirmation}
-                onChange={setPasswordValid}
-                className="space-y-1"
-                itemClassName="text-[11px]"
-                iconSize={12}
-                validTextColor="#16a34a"
-                invalidTextColor="#71717a"
-              />
-            )}
           </div>
           <Button type="submit" className="w-full" disabled={submitting}>
             {submitting ? 'Creating account…' : 'Create Account'}

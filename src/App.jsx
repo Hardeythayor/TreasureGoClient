@@ -3,7 +3,6 @@ import { AuthProvider } from '@/context/AuthContext'
 import { SubscriptionProvider } from '@/context/SubscriptionContext'
 import { HuntProvider } from '@/context/HuntContext'
 import { TreasureStatusProvider } from '@/context/TreasureStatusContext'
-import { NotificationsProvider } from '@/context/NotificationsContext'
 import { SubscriptionTiersProvider } from '@/context/SubscriptionTiersContext'
 import { AdminTreasuresProvider } from '@/context/AdminTreasuresContext'
 import { AdminUsersProvider } from '@/context/AdminUsersContext'
@@ -22,29 +21,27 @@ function App() {
       <AuthProvider>
         <SubscriptionProvider>
           <TreasureStatusProvider>
-            <NotificationsProvider>
-              <SubscriptionTiersProvider>
-                <AdminTreasuresProvider>
-                  <AdminUsersProvider>
-                    <AdminTreasureRewardsProvider>
-                      <AdminMessagesProvider>
-                        <AdminMessagesFeedProvider>
-                          <AdminSubscriptionAnalyticsProvider>
-                            <RewardsProvider>
-                              <MessagesProvider>
-                                <HuntProvider>
-                                  <AppRoutes />
-                                </HuntProvider>
-                              </MessagesProvider>
-                            </RewardsProvider>
-                          </AdminSubscriptionAnalyticsProvider>
-                        </AdminMessagesFeedProvider>
-                      </AdminMessagesProvider>
-                    </AdminTreasureRewardsProvider>
-                  </AdminUsersProvider>
-                </AdminTreasuresProvider>
-              </SubscriptionTiersProvider>
-            </NotificationsProvider>
+            <SubscriptionTiersProvider>
+              <AdminTreasuresProvider>
+                <AdminUsersProvider>
+                  <AdminTreasureRewardsProvider>
+                    <AdminMessagesProvider>
+                      <AdminMessagesFeedProvider>
+                        <AdminSubscriptionAnalyticsProvider>
+                          <RewardsProvider>
+                            <MessagesProvider>
+                              <HuntProvider>
+                                <AppRoutes />
+                              </HuntProvider>
+                            </MessagesProvider>
+                          </RewardsProvider>
+                        </AdminSubscriptionAnalyticsProvider>
+                      </AdminMessagesFeedProvider>
+                    </AdminMessagesProvider>
+                  </AdminTreasureRewardsProvider>
+                </AdminUsersProvider>
+              </AdminTreasuresProvider>
+            </SubscriptionTiersProvider>
           </TreasureStatusProvider>
         </SubscriptionProvider>
       </AuthProvider>

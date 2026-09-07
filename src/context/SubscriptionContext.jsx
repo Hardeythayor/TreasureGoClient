@@ -19,8 +19,8 @@ export function SubscriptionProvider({ children }) {
   // NOTE: this only reflects what Flutterwave's client-side callback reported
   // — there's no backend yet to verify the transaction server-side, so this
   // is trust-on-callback, not a secure source of truth for real payments.
-  const activateTier = useCallback((tier, txRef) => {
-    const next = { tier, txRef, activatedAt: new Date().toISOString() }
+  const activateTier = useCallback((tier, txRef, type) => {
+    const next = { tier, txRef, type, activatedAt: new Date().toISOString() }
     localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(next))
     setSubscription(next)
   }, [])

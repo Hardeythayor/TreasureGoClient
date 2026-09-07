@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import PasswordChecklist from 'react-password-checklist'
 import { ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -23,8 +22,6 @@ import {
   enablePushNotifications,
   isPushNotificationsEnabled,
 } from '@/lib/beams'
-
-const PASSWORD_RULES = ['minLength', 'capital', 'number', 'specialChar', 'match']
 
 function SettingsRow({ label, right, onClick }) {
   const content = (
@@ -76,7 +73,6 @@ function AdminSettingsPage() {
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM)
   const [passwordFieldErrors, setPasswordFieldErrors] = useState({})
-  const [newPasswordValid, setNewPasswordValid] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
 
   useEffect(() => {
@@ -121,8 +117,12 @@ function AdminSettingsPage() {
 
   async function handleChangePassword(e) {
     e.preventDefault()
-    if (!newPasswordValid) {
-      toast.error('Please meet all password requirements.')
+    if (passwordForm.newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters.')
+      return
+    }
+    if (passwordForm.newPassword !== passwordForm.passwordConfirmation) {
+      toast.error('New password and confirmation do not match.')
       return
     }
 
@@ -186,10 +186,12 @@ function AdminSettingsPage() {
               <PasswordInput
                 id="new-password"
                 required
+                minLength={8}
                 autoComplete="new-password"
                 value={passwordForm.newPassword}
                 onChange={updatePasswordField('newPassword')}
               />
+              <p className="text-[11px] text-muted-foreground">Min 8 characters</p>
               <FieldError message={passwordFieldErrors.new_password} />
             </div>
 
@@ -200,25 +202,12 @@ function AdminSettingsPage() {
               <PasswordInput
                 id="new-password-confirmation"
                 required
+                minLength={8}
                 autoComplete="new-password"
                 value={passwordForm.passwordConfirmation}
                 onChange={updatePasswordField('passwordConfirmation')}
               />
               <FieldError message={passwordFieldErrors.password_confirmation} />
-              {passwordForm.newPassword && (
-                <PasswordChecklist
-                  rules={PASSWORD_RULES}
-                  minLength={8}
-                  value={passwordForm.newPassword}
-                  valueAgain={passwordForm.passwordConfirmation}
-                  onChange={setNewPasswordValid}
-                  className="space-y-1"
-                  itemClassName="text-[11px]"
-                  iconSize={12}
-                  validTextColor="#16a34a"
-                  invalidTextColor="#71717a"
-                />
-              )}
             </div>
 
             <DialogFooter className="mt-2">

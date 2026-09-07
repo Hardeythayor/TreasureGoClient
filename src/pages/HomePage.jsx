@@ -7,7 +7,7 @@ import {
   AdvancedMarker,
   useMap,
 } from '@vis.gl/react-google-maps'
-import { MoreVertical, MapPin, X as XIcon } from 'lucide-react'
+import { MoreVertical, X as XIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SideMenuDrawer from '@/components/layout/SideMenuDrawer'
 import DirectionalPad from '@/components/home/DirectionalPad'
@@ -16,14 +16,12 @@ import { Switch } from '@/components/ui/switch'
 import {
   useHunt,
   distanceMeters,
-  getProximityLabel,
   HUNT_ZOOM,
   HUNT_WIN_THRESHOLD_M,
 } from '@/context/HuntContext'
 import { useTreasureStatus } from '@/context/TreasureStatusContext'
-import { useNotifications } from '@/context/NotificationsContext'
 import { useMessages } from '@/context/MessagesContext'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { markTreasureFoundRequest } from '@/services/publicTreasuresService'
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? ''
@@ -33,8 +31,8 @@ const LAGOS_CENTER = { lat: 6.5244, lng: 3.3792 }
 function DebugTargetMarker({ position }) {
   return (
     <AdvancedMarker position={position} anchorLeft="-50%" anchorTop="-50%">
-      <div className="flex size-8 items-center justify-center rounded-full border-2 border-white bg-red-500 text-white shadow-lg">
-        <MapPin className="size-4" fill="currentColor" />
+      <div className="flex size-12 items-center justify-center rounded-full border-[3px] border-gold bg-white shadow-2xl">
+        <img src="/assets/icons/chest.png" alt="Treasure location" className="size-6" />
       </div>
     </AdvancedMarker>
   )
@@ -49,6 +47,7 @@ function DraggableTreasureMarker({ position, onMoved }) {
       draggable
       anchorLeft="-50%"
       anchorTop="-50%"
+      className="outline-none focus:outline-none focus-visible:outline-none"
       onDragEnd={(e) => {
         const latLng = e.latLng
         if (!latLng) return
@@ -58,20 +57,12 @@ function DraggableTreasureMarker({ position, onMoved }) {
       }}
     >
       <div
-        className="relative flex size-16 touch-none items-center justify-center select-none"
+        className="relative flex size-16 cursor-grab touch-none items-center justify-center select-none active:cursor-grabbing"
         draggable={false}
         onDragStart={(e) => e.preventDefault()}
       >
-        <span className="absolute size-16 animate-ping rounded-full bg-gold-light/50" />
-        <div className="relative z-10 flex size-12 cursor-grab items-center justify-center rounded-full border-[3px] border-gold bg-white shadow-2xl active:cursor-grabbing">
-          <img
-            src="/assets/icons/chest.png"
-            alt="Treasure marker"
-            className="size-6"
-            draggable={false}
-            onDragStart={(e) => e.preventDefault()}
-          />
-        </div>
+        <span className="absolute size-14 rounded-full bg-blue-500/20" />
+        <span className="relative z-10 size-5 rounded-full border-[3px] border-white bg-blue-600 shadow-[0_1px_4px_rgba(0,0,0,0.4)]" />
       </div>
     </AdvancedMarker>
   )
@@ -87,15 +78,11 @@ function HomePage() {
   const navigate = useNavigate()
   const { activeHunt, clearHunt } = useHunt()
   const { markFound } = useTreasureStatus()
-  const { addNotification } = useNotifications()
   const { unreadCount } = useMessages()
 
   const mapCenter = activeHunt?.region ?? LAGOS_CENTER
-  const mapZoom = activeHunt ? HUNT_ZOOM : 12
+  const mapZoom = activeHunt ? HUNT_ZOOM : 80
   const [treasurePosition, setTreasurePosition] = useState(mapCenter)
-  const proximity = activeHunt
-    ? getProximityLabel(distanceMeters(treasurePosition, activeHunt.target))
-    : null
   // Guards against firing the /find request twice — the win-condition
   // effect below can re-run (e.g. another drag) while the first call is
   // still in flight, since nothing synchronous stops it before then.
@@ -112,16 +99,8 @@ function HomePage() {
 
     async function completeHunt() {
       try {
-        if (isApiConfigured()) {
-          await markTreasureFoundRequest(treasureId)
-        }
+        await markTreasureFoundRequest(treasureId)
         markFound(treasureId)
-        addNotification({
-          icon: 'trophy',
-          title: 'Treasure found!',
-          message: `${treasureName ?? 'A treasure'} was just found and is no longer available to hunt.`,
-          time: 'Just now',
-        })
         clearHunt()
         navigate(`/hunt/${treasureId}/found`, { state: { treasureName } })
       } catch (err) {
@@ -136,7 +115,7 @@ function HomePage() {
     }
 
     completeHunt()
-  }, [treasurePosition, activeHunt, clearHunt, navigate, markFound, addNotification])
+  }, [treasurePosition, activeHunt, clearHunt, navigate, markFound])
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -146,6 +125,7 @@ function HomePage() {
           mapId="DEMO_MAP_ID"
           defaultCenter={mapCenter}
           defaultZoom={mapZoom}
+          mapTypeId="satellite"
           disableDefaultUI
           gestureHandling="greedy"
         >
@@ -171,10 +151,6 @@ function HomePage() {
         <div className="absolute top-16 left-1/2 z-10 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-full bg-navy-deep/80 py-2 pr-2 pl-4 text-white backdrop-blur-sm md:top-4">
           <span className="min-w-0 truncate text-xs font-semibold">
             Hunting: {activeHunt.name}
-          </span>
-          <span className="h-4 w-px shrink-0 bg-white/20" />
-          <span className="shrink-0 text-xs font-medium whitespace-nowrap text-gold-light">
-            {proximity}
           </span>
           <button
             type="button"

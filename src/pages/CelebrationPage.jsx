@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
-import { treasures } from '@/data/treasures'
 import { Button } from '@/components/ui/button'
 
 const CONFETTI_COLORS = ['#f6c854', '#f0a79e', '#8aa1c2', '#61c454', '#f2b10a', '#ffffff']
@@ -27,10 +26,8 @@ function CelebrationPage() {
   const { id } = useParams()
   const { state } = useLocation()
   const navigate = useNavigate()
-  // HomePage passes the name through router state (needed for real,
-  // API-sourced treasures, since their numeric ids don't exist in this
-  // local demo list) — falling back to it here for the offline demo path.
-  const treasureName = state?.treasureName ?? treasures.find((t) => t.id === id)?.name
+  // HomePage passes the name through router state.
+  const treasureName = state?.treasureName
   const [confetti] = useState(generateConfetti)
 
   return (

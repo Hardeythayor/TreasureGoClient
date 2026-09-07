@@ -42,21 +42,3 @@ export const apiPost = (url, data, config) => request({ ...config, url, method: 
 export const apiPut = (url, data, config) => request({ ...config, url, method: 'PUT', data })
 export const apiPatch = (url, data, config) => request({ ...config, url, method: 'PATCH', data })
 export const apiDelete = (url, config) => request({ ...config, url, method: 'DELETE' })
-
-// Tries the real endpoint first; falls back to local (mock/localStorage)
-// behavior if the API base URL isn't configured, the backend is unreachable,
-// or that module's endpoint hasn't been implemented yet. This lets each
-// context adopt its real endpoint independently, whenever it's handed to us,
-// without breaking the rest of the app in the meantime.
-export async function withApiFallback(apiCall, fallback) {
-  if (!isApiConfigured()) return fallback()
-
-  try {
-    return await apiCall()
-  } catch (err) {
-    if (import.meta.env.DEV) {
-      console.warn('[api] falling back to local data:', err)
-    }
-    return fallback()
-  }
-}

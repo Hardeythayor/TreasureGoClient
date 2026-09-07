@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 
 const DRAWER_ITEMS = [
-  { to: '/', label: 'Home', icon: MapPin },
+  { to: '/', label: 'Map', icon: MapPin },
   { to: '/profile', label: 'Profile', icon: User },
   { to: '/treasures', label: 'Treasure Pass', icon: CreditCard },
   { to: '/rewards', label: 'Rewards', icon: Gift },

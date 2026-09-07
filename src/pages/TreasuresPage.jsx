@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { CreditCard } from 'lucide-react'
 import TierCard from '@/components/treasure/TierCard'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ApiError } from '@/lib/api'
 import { fetchPublicSubscriptionTiersRequest } from '@/services/publicSubscriptionTiersService'
 
 const ICONS = [
@@ -11,17 +13,6 @@ const ICONS = [
   '/assets/chest-4.png',
   '/assets/chest-5.png',
   '/assets/chest-6.png',
-]
-
-// Used only when no API base URL is configured at all (pure offline/demo
-// mode) — matches the shape a real subscription tier already has.
-const FALLBACK_TIERS = [
-  { id: '10', name: '$10', amount: '10', validity: 30, type: 'free', reward_amount: '10' },
-  { id: '25', name: '$25', amount: '25', validity: 30, type: 'free', reward_amount: '20' },
-  { id: '50', name: '$50', amount: '50', validity: 30, type: 'free', reward_amount: '50' },
-  { id: '75', name: '$75', amount: '75', validity: 30, type: 'premium', reward_amount: '100' },
-  { id: '100', name: '$100', amount: '100', validity: 30, type: 'premium', reward_amount: '200' },
-  { id: '200', name: '$200', amount: '200', validity: 30, type: 'premium', reward_amount: '300' },
 ]
 
 function extractTierList(result) {
@@ -36,13 +27,15 @@ function extractTierList(result) {
 // them in. `currentTierId` (from the response's sibling
 // current_user_subscription.subscription_tier_id, or null) is compared
 // against each tier's real backend id to mark the server-verified active
-// one — offline/fallback mode has no such record, so nothing is marked
-// active here and TierCard's own local check is the only signal.
+// one.
 function normalizeTiers(list, currentTierId = null) {
-  // A user can only have one active subscription at a time — every card
-  // gets this flag so a non-active one can block selection rather than
-  // letting the user stack a second subscription on top of an existing one.
-  const hasActiveSubscription = currentTierId != null
+  // The free tier is always available. Only premium tiers enforce "one
+  // active premium subscription at a time," so every card gets this flag
+  // based on whether the user's *currently active* tier is itself premium —
+  // an active free subscription should never block another tier.
+  const currentTier =
+    currentTierId != null ? list.find((t) => String(t.id) === currentTierId) : null
+  const hasActivePremiumSubscription = currentTier?.type === 'premium'
   return [...list]
     .sort((a, b) => Number(a.amount ?? 0) - Number(b.amount ?? 0))
     .map((data, i) => ({
@@ -54,16 +47,15 @@ function normalizeTiers(list, currentTierId = null) {
       rewardAmount: Number(data.reward_amount ?? 0),
       icon: ICONS[i % ICONS.length],
       serverActive: currentTierId != null && String(data.id) === currentTierId,
-      hasActiveSubscription,
+      hasActivePremiumSubscription,
     }))
 }
 
 function TreasuresPage() {
-  const [tiers, setTiers] = useState(() => normalizeTiers(FALLBACK_TIERS))
+  const [tiers, setTiers] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!isApiConfigured()) return
-
     async function load() {
       let result
       try {
@@ -76,6 +68,8 @@ function TreasuresPage() {
             : 'Unable to reach the server. Please check your connection and try again.',
         )
         return
+      } finally {
+        setLoading(false)
       }
 
       const list = extractTierList(result)
@@ -99,11 +93,21 @@ function TreasuresPage() {
 
   return (
     <div className="mx-auto max-w-5xl py-10 px-6">
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-16 lg:grid-cols-3">
-        {tiers.map((tier) => (
-          <TierCard key={tier.id} {...tier} />
-        ))}
-      </div>
+      {loading ? (
+        <p className="text-center text-sm text-muted-foreground">Loading treasure passes…</p>
+      ) : tiers.length === 0 ? (
+        <EmptyState
+          icon={CreditCard}
+          title="No treasure passes yet"
+          description="The admin hasn't set up any subscription tiers yet — check back soon."
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-16 lg:grid-cols-3">
+          {tiers.map((tier) => (
+            <TierCard key={tier.id} {...tier} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

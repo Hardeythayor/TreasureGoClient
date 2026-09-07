@@ -1,37 +1,8 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { fetchSentMessagesRequest } from '@/services/adminNotificationsService'
 
 const DEFAULT_PAGINATION = { currentPage: 1, lastPage: 1, total: 0, perPage: 30 }
-
-// Local-only mock data, used only when no API base URL is configured at all
-// (pure offline/demo mode).
-const LOCAL_SENT_MESSAGES = [
-  {
-    id: 'demo-1',
-    to: 'All Users',
-    messageTypeLabel: 'General Update',
-    date: 'Jul 10, 2026',
-    title: 'New Subscription tiers to be added soon',
-    message: '<p>Look forward to an exciting experience as new Treasure Passes will be added soon.</p>',
-  },
-  {
-    id: 'demo-2',
-    to: '1 User',
-    messageTypeLabel: 'Congratulatory',
-    date: 'Jul 09, 2026',
-    title: 'Congrats on your find!',
-    message: '<p>Nice work finding <strong>Emerald Vault</strong> — your reward is on the way.</p>',
-  },
-  {
-    id: 'demo-3',
-    to: '$100 Tier',
-    messageTypeLabel: 'General Update',
-    date: 'Jul 08, 2026',
-    title: 'New treasures added to your tier',
-    message: '<p>3 new treasures were just added to the $100 tier. Go hunt!</p>',
-  },
-]
 
 const MESSAGE_TYPE_LABELS = {
   announcement: 'General Update',
@@ -101,24 +72,11 @@ export function AdminMessagesProvider({ children }) {
   const [loading, setLoading] = useState(false)
   const filtersRef = useRef({ page: 1 })
 
-  // Same rule as every other list fetch in this codebase: once the API is
-  // configured, a failure is thrown (not swallowed) so the page can show
-  // it. The local list is only used when no API is configured at all.
+  // A failure is thrown (not swallowed) so the page can show it.
   const fetchSentMessages = useCallback(async (filters = filtersRef.current) => {
     filtersRef.current = filters
     setLoading(true)
     try {
-      if (!isApiConfigured()) {
-        setMessages(LOCAL_SENT_MESSAGES)
-        setPagination({
-          currentPage: 1,
-          lastPage: 1,
-          total: LOCAL_SENT_MESSAGES.length,
-          perPage: LOCAL_SENT_MESSAGES.length || 30,
-        })
-        return
-      }
-
       let result
       try {
         result = await fetchSentMessagesRequest(filters)

@@ -24,7 +24,7 @@ import RichTextEditor from '@/components/admin/RichTextEditor'
 import { useAdminUsers } from '@/context/AdminUsersContext'
 import { useSubscriptionTiers } from '@/context/SubscriptionTiersContext'
 import { useAdminMessages } from '@/context/AdminMessagesContext'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { sendNotificationRequest } from '@/services/adminNotificationsService'
 
 const RECIPIENT_OPTIONS = [
@@ -154,16 +154,14 @@ function AdminNotificationsPage() {
 
     setSending(true)
     try {
-      if (isApiConfigured()) {
-        await sendNotificationRequest({
-          type: recipientType,
-          messageType,
-          title,
-          message,
-          subscriptionTierId: tierId,
-          userId: selectedUser?.id,
-        })
-      }
+      await sendNotificationRequest({
+        type: recipientType,
+        messageType,
+        title,
+        message,
+        subscriptionTierId: tierId,
+        userId: selectedUser?.id,
+      })
       toast.success('Notification sent.')
       updateRecipientType('all')
       setMessageType('announcement')

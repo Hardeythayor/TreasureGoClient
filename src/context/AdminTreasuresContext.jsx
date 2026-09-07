@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useState } from 'react'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import {
   createTreasureRequest,
   deleteTreasureRequest,
@@ -8,53 +8,6 @@ import {
   updateTreasureRequest,
 } from '@/services/treasuresService'
 import { DEFAULT_CENTER } from '@/components/admin/TreasureLocationPicker'
-
-const TREASURES_KEY = 'treasure-go:admin-treasures'
-
-// Placeholder records for offline/demo mode — structured the same way a
-// real treasure will be, so the page works the same whether the API is
-// configured or not.
-const DEFAULT_TREASURES = [
-  {
-    id: 'treasure-emerald-vault',
-    name: 'Emerald Vault',
-    tierLabel: '$75',
-    subscriptionTierId: '',
-    region: 'Victoria Island',
-    location: { lat: 6.4281, lng: 3.4219 },
-    status: 'Hidden',
-    createdAt: 'Jun 02, 2026',
-  },
-  {
-    id: 'treasure-sunken-lagoon-chest',
-    name: 'Sunken Lagoon Chest',
-    tierLabel: '$100',
-    subscriptionTierId: '',
-    region: 'Lekki Lagoon',
-    location: { lat: 6.4402, lng: 3.4715 },
-    status: 'Hidden',
-    createdAt: 'Jun 09, 2026',
-  },
-  {
-    id: 'treasure-merchants-cache',
-    name: 'Merchant’s Cache',
-    tierLabel: '$50',
-    subscriptionTierId: '',
-    region: 'Marina District',
-    location: { lat: 6.4531, lng: 3.3958 },
-    status: 'Found',
-    createdAt: 'May 27, 2026',
-  },
-]
-
-function readLocalTreasures() {
-  try {
-    const raw = localStorage.getItem(TREASURES_KEY)
-    return raw ? JSON.parse(raw) : DEFAULT_TREASURES
-  } catch {
-    return DEFAULT_TREASURES
-  }
-}
 
 function formatDate(date) {
   return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
@@ -131,23 +84,10 @@ export function AdminTreasuresProvider({ children }) {
   const [treasures, setTreasures] = useState([])
   const [loading, setLoading] = useState(false)
 
-  const persistLocal = useCallback((next) => {
-    localStorage.setItem(TREASURES_KEY, JSON.stringify(next))
-    return next
-  }, [])
-
-  // Same rule as SubscriptionTiersContext: once the API is configured, a
-  // failure is thrown (not swallowed) so the page can show it — silently
-  // falling back would show stale/wrong data with no indication anything
-  // went wrong. The local list is only used when no API is configured.
+  // A failure is thrown (not swallowed) so the page can show it.
   const fetchTreasures = useCallback(async () => {
     setLoading(true)
     try {
-      if (!isApiConfigured()) {
-        setTreasures(readLocalTreasures())
-        return
-      }
-
       let result
       try {
         result = await fetchTreasuresRequest()
@@ -167,14 +107,6 @@ export function AdminTreasuresProvider({ children }) {
 
   const createTreasure = useCallback(
     async (form) => {
-      if (!isApiConfigured()) {
-        const all = readLocalTreasures()
-        const treasure = normalizeTreasure({}, { ...form, createdAt: formatToday() })
-        persistLocal([...all, treasure])
-        setTreasures([...all, treasure])
-        return treasure
-      }
-
       let result
       try {
         result = await createTreasureRequest(form)
@@ -189,20 +121,11 @@ export function AdminTreasuresProvider({ children }) {
       await fetchTreasures()
       return treasure
     },
-    [persistLocal, fetchTreasures],
+    [fetchTreasures],
   )
 
   const updateTreasure = useCallback(
     async (id, form) => {
-      if (!isApiConfigured()) {
-        const all = readLocalTreasures().map((t) =>
-          t.id === id ? normalizeTreasure({}, { ...t, ...form }) : t,
-        )
-        persistLocal(all)
-        setTreasures(all)
-        return
-      }
-
       try {
         await updateTreasureRequest(id, form)
       } catch (err) {
@@ -214,18 +137,11 @@ export function AdminTreasuresProvider({ children }) {
       }
       await fetchTreasures()
     },
-    [persistLocal, fetchTreasures],
+    [fetchTreasures],
   )
 
   const deleteTreasure = useCallback(
     async (id) => {
-      if (!isApiConfigured()) {
-        const all = readLocalTreasures().filter((t) => t.id !== id)
-        persistLocal(all)
-        setTreasures(all)
-        return
-      }
-
       try {
         await deleteTreasureRequest(id)
       } catch (err) {
@@ -237,20 +153,11 @@ export function AdminTreasuresProvider({ children }) {
       }
       await fetchTreasures()
     },
-    [persistLocal, fetchTreasures],
+    [fetchTreasures],
   )
 
   const toggleStatus = useCallback(
     async (id) => {
-      if (!isApiConfigured()) {
-        const all = readLocalTreasures().map((t) =>
-          t.id === id ? { ...t, status: t.status === 'Hidden' ? 'Found' : 'Hidden' } : t,
-        )
-        persistLocal(all)
-        setTreasures(all)
-        return
-      }
-
       try {
         await toggleTreasureStatusRequest(id)
       } catch (err) {
@@ -262,7 +169,7 @@ export function AdminTreasuresProvider({ children }) {
       }
       await fetchTreasures()
     },
-    [persistLocal, fetchTreasures],
+    [fetchTreasures],
   )
 
   return (

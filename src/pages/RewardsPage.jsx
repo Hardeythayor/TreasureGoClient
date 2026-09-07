@@ -4,6 +4,7 @@ import { Gift, Box, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useRewards } from '@/context/RewardsContext'
 
 function statusBadge(reward) {
@@ -32,9 +33,11 @@ function RewardsPage() {
         {loading && rewards.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground">Loading rewards…</p>
         ) : rewards.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground">
-            No treasure hunts yet — start one to see your rewards here.
-          </p>
+          <EmptyState
+            icon={Gift}
+            title="No rewards yet"
+            description="Start a treasure hunt to see your rewards appear here."
+          />
         ) : (
           rewards.map((reward) => {
             const badge = statusBadge(reward)

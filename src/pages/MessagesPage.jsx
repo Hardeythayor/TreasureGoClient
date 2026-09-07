@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Trophy, Gift, Bell, ChevronLeft, ChevronRight, Trash2, CheckCheck } from 'lucide-react'
+import { Trophy, Gift, Bell, ChevronLeft, ChevronRight, Trash2, CheckCheck, Inbox } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { cn } from '@/lib/utils'
 import { useMessages } from '@/context/MessagesContext'
 
@@ -30,7 +31,7 @@ function MessagesPage() {
 
   function handleOpen(message) {
     if (!message.unread) return
-    markRead(message.id).catch((err) => {
+    markRead(message).catch((err) => {
       toast.error(err?.message || 'Failed to mark message as read.')
     })
   }
@@ -111,7 +112,11 @@ function MessagesPage() {
         {loading && messages.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground">Loading messages…</p>
         ) : messages.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground">No messages yet.</p>
+          <EmptyState
+            icon={Inbox}
+            title="No messages yet"
+            description="You'll see updates about your treasure hunts and rewards here."
+          />
         ) : (
           messages.map((m) => {
             const { id, icon, title, message, time, unread } = m

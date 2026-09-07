@@ -1,21 +1,8 @@
 import { createContext, useCallback, useContext, useState } from 'react'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { fetchSubscriptionAnalyticsRequest } from '@/services/subscriptionAnalyticsService'
 
-// Local-only mock data, used only when no API base URL is configured at all
-// (pure offline/demo mode).
-const LOCAL_ANALYTICS = {
-  totalRevenue: 14485,
-  totalSubscribers: 312,
-  byTier: [
-    { tierId: 'tier-starter-pass', tierName: 'Starter Pass', subscribers: 96, revenue: 960 },
-    { tierId: 'tier-explorer-pass', tierName: 'Explorer Pass', subscribers: 74, revenue: 1850 },
-    { tierId: 'tier-adventurer-pass', tierName: 'Adventurer Pass', subscribers: 58, revenue: 2900 },
-    { tierId: 'tier-voyager-pass', tierName: 'Voyager Pass', subscribers: 41, revenue: 3075 },
-    { tierId: 'tier-elite-pass', tierName: 'Elite Pass', subscribers: 29, revenue: 2900 },
-    { tierId: 'tier-legendary-pass', tierName: 'Legendary Pass', subscribers: 14, revenue: 2800 },
-  ],
-}
+const EMPTY_ANALYTICS = { totalRevenue: 0, totalSubscribers: 0, byTier: [] }
 
 function normalizeAnalytics(result) {
   const byTier = Array.isArray(result?.by_tier) ? result.by_tier : []
@@ -34,20 +21,13 @@ function normalizeAnalytics(result) {
 const AdminSubscriptionAnalyticsContext = createContext(null)
 
 export function AdminSubscriptionAnalyticsProvider({ children }) {
-  const [analytics, setAnalytics] = useState(LOCAL_ANALYTICS)
+  const [analytics, setAnalytics] = useState(EMPTY_ANALYTICS)
   const [loading, setLoading] = useState(false)
 
-  // Same rule as the other admin modules: once the API is configured, a
-  // failure is thrown (not swallowed) so the page can show it. The local
-  // mock is only used when no API is configured at all.
+  // A failure is thrown (not swallowed) so the page can show it.
   const fetchSubscriptionAnalytics = useCallback(async () => {
     setLoading(true)
     try {
-      if (!isApiConfigured()) {
-        setAnalytics(LOCAL_ANALYTICS)
-        return
-      }
-
       let result
       try {
         result = await fetchSubscriptionAnalyticsRequest()

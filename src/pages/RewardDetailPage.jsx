@@ -1,14 +1,11 @@
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate } from 'react-router'
 import { Gift } from 'lucide-react'
-import { treasures } from '@/data/treasures'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
 function RewardDetailPage() {
-  const { id } = useParams()
   const navigate = useNavigate()
-  const treasure = treasures.find((t) => t.id === id)
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -24,7 +21,7 @@ function RewardDetailPage() {
             </h2>
             <p className="mt-1.5 text-sm text-neutral">
               Our admin team has been notified about{' '}
-              <strong>{treasure?.name ?? 'your treasure'}</strong> and will send
+              <strong>your treasure</strong> and will send
               your gift card reward instructions shortly.
             </p>
             <Badge variant="warning" className="mt-3.5">

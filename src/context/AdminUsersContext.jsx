@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import {
   deleteAdminUserRequest,
   fetchAdminUserRequest,
@@ -8,7 +8,6 @@ import {
   toggleAdminUserStatusRequest,
   updateAdminUserRequest,
 } from '@/services/adminUsersService'
-import { adminUsers as LOCAL_USERS } from '@/data/adminUsers'
 
 const DEFAULT_FILTERS = { search: '', status: 'all' }
 const DEFAULT_PAGINATION = { currentPage: 1, lastPage: 1, total: 0, perPage: 30 }
@@ -67,21 +66,6 @@ function normalizeUsersPage(result) {
   }
 }
 
-function filterLocally(all, { search = '', status = 'all' } = {}) {
-  return all.filter((u) => {
-    if (search) {
-      const q = search.toLowerCase()
-      const matches =
-        u.name.toLowerCase().includes(q) ||
-        u.username.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q)
-      if (!matches) return false
-    }
-    if (status !== 'all' && u.status.toLowerCase() !== status) return false
-    return true
-  })
-}
-
 const AdminUsersContext = createContext(null)
 
 export function AdminUsersProvider({ children }) {
@@ -95,20 +79,11 @@ export function AdminUsersProvider({ children }) {
   const [userStatsLoading, setUserStatsLoading] = useState(false)
   const filtersRef = useRef(DEFAULT_FILTERS)
 
-  // Same rule as the other admin modules: once the API is configured, a
-  // failure is thrown (not swallowed) so the page can show it. The local
-  // list is only used when no API is configured at all.
+  // A failure is thrown (not swallowed) so the page can show it.
   const fetchUsers = useCallback(async (filters = filtersRef.current) => {
     filtersRef.current = filters
     setLoading(true)
     try {
-      if (!isApiConfigured()) {
-        const filtered = filterLocally(LOCAL_USERS, filters)
-        setUsers(filtered)
-        setPagination({ currentPage: 1, lastPage: 1, total: filtered.length, perPage: filtered.length || 30 })
-        return
-      }
-
       let result
       try {
         result = await fetchAdminUsersRequest(filters)
@@ -135,15 +110,6 @@ export function AdminUsersProvider({ children }) {
   const fetchUserStats = useCallback(async () => {
     setUserStatsLoading(true)
     try {
-      if (!isApiConfigured()) {
-        setUserStats({
-          total: LOCAL_USERS.length,
-          active: LOCAL_USERS.filter((u) => normalizeStatus(u.status) === 'Active').length,
-          inactive: LOCAL_USERS.filter((u) => normalizeStatus(u.status) === 'Inactive').length,
-        })
-        return
-      }
-
       let allResult, activeResult, inactiveResult
       try {
         ;[allResult, activeResult, inactiveResult] = await Promise.all([
@@ -176,9 +142,6 @@ export function AdminUsersProvider({ children }) {
   // currently be showing.
   const searchUsers = useCallback(async (query) => {
     if (!query) return []
-    if (!isApiConfigured()) {
-      return filterLocally(LOCAL_USERS, { search: query, status: 'all' }).map(normalizeUser)
-    }
 
     let result
     try {
@@ -204,14 +167,6 @@ export function AdminUsersProvider({ children }) {
     setUserDetailLoading(true)
     setUserDetailError('')
     try {
-      if (!isApiConfigured()) {
-        const local = LOCAL_USERS.find((u) => String(u.id) === String(id))
-        if (!local) throw new Error('User not found.')
-        const user = normalizeUser(local)
-        setUserDetail(user)
-        return user
-      }
-
       let result
       try {
         result = await fetchAdminUserRequest(id)
@@ -247,11 +202,6 @@ export function AdminUsersProvider({ children }) {
       setUserDetail((prev) => (prev && prev.id === id ? { ...prev, ...fields } : prev))
     }
 
-    if (!isApiConfigured()) {
-      applyLocally(patch)
-      return
-    }
-
     let result
     try {
       result = await updateAdminUserRequest(id, patch)
@@ -282,12 +232,6 @@ export function AdminUsersProvider({ children }) {
   // unreachable backend falls back to a local-only delete. Removes the
   // user from both the shared list and the current detail record.
   const deleteUser = useCallback(async (id) => {
-    if (!isApiConfigured()) {
-      setUsers((prev) => prev.filter((u) => u.id !== id))
-      setUserDetail((prev) => (prev && prev.id === id ? null : prev))
-      return
-    }
-
     try {
       await deleteAdminUserRequest(id)
     } catch (err) {
@@ -320,11 +264,6 @@ export function AdminUsersProvider({ children }) {
       )
     }
 
-    if (!isApiConfigured()) {
-      flipLocally()
-      return
-    }
-
     try {
       await toggleAdminUserStatusRequest(id)
     } catch (err) {
@@ -337,13 +276,7 @@ export function AdminUsersProvider({ children }) {
     flipLocally()
   }, [])
 
-  // No local state changes on success (nothing about the user record
-  // changes) and no offline fallback makes sense — there's nothing
-  // meaningful to fake locally, so it just requires a real API.
   const resetUserPassword = useCallback(async (id) => {
-    if (!isApiConfigured()) {
-      throw new Error('Resetting a password requires a connected server.')
-    }
     try {
       await resetAdminUserPasswordRequest(id)
     } catch (err) {

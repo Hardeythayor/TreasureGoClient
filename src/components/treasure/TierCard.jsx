@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { useAuth } from '@/context/AuthContext'
 import { useSubscription } from '@/context/SubscriptionContext'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { createSubscriptionRequest, verifyTransactionRequest } from '@/services/subscriptionsService'
 
@@ -29,7 +29,7 @@ function TierCard({
   rewardAmount,
   icon,
   serverActive,
-  hasActiveSubscription,
+  hasActivePremiumSubscription,
 }) {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
@@ -48,11 +48,13 @@ function TierCard({
   // for the moment right after a successful payment, in case the tiers list
   // hasn't been refetched yet.
   const active = serverActive || isTierActive(id)
-  // A user can only ever have one active subscription — `hasActiveSubscription`
+  // Free tiers are always available and never blocked — only premium tiers
+  // enforce "one active premium subscription at a time." `hasActivePremiumSubscription`
   // is the server's word on that (passed down from the tiers list), OR'd with
   // the local post-activation bridge for the same reason `active` is, so a
-  // second tier can't be selected in the gap before the list is refetched.
-  const blockedByExistingSubscription = !active && (hasActiveSubscription || Boolean(subscription))
+  // second premium tier can't be selected in the gap before the list is refetched.
+  const blockedByExistingSubscription =
+    premium && !active && (hasActivePremiumSubscription || subscription?.type === 'premium')
 
   const [txRef, setTxRef] = useState(null)
   const [txAmount, setTxAmount] = useState(numericAmount)
@@ -63,9 +65,9 @@ function TierCard({
   const pendingPaymentRef = useRef(false)
 
   const features = [
-    `${premium ? 'Unlimited' : 'Limited'} hunts within tier`,
-    `Valid for ${validity} days`,
-    'Access to premium treasures',
+    `${premium ? 'Unlimited' : 'Limited'}`,
+    ...(premium ? [`Valid for ${validity} days`] : []),
+    // 'Access to premium treasures',
     `$${rewardAmount} Amazon Gift Card`,
   ]
 
@@ -108,15 +110,9 @@ function TierCard({
         closePaymentModal()
         if (response.status !== 'successful') return
 
-        if (!isApiConfigured()) {
-          activateTier(id, txRef)
-          navigate(`/treasures/${id}`)
-          return
-        }
-
         verifyTransactionRequest(txRef)
           .then(() => {
-            activateTier(id, txRef)
+            activateTier(id, txRef, type)
             toast.success('Payment verified! Your subscription is now active.')
             navigate(`/treasures/${id}`)
           })
@@ -154,41 +150,11 @@ function TierCard({
     }
 
     if (!premium) {
-      // Free tiers still call create-subscription, but the backend doesn't
-      // issue a real transaction for them — there's nothing to pay, so
-      // Flutterwave is skipped entirely and we go straight to the tier's
-      // treasures once the subscription exists.
-      setCreatingCheckout(true)
-      try {
-        if (isApiConfigured()) {
-          await createSubscriptionRequest(id)
-        }
-        activateTier(id, null)
-        toast.success('Subscription activated!')
-        setOpen(false)
-        navigate(`/treasures/${id}`)
-      } catch (err) {
-        const reachedBackend = err instanceof ApiError && err.status > 0
-        toast.error(
-          reachedBackend
-            ? err.message
-            : 'Unable to reach the server. Please check your connection and try again.',
-        )
-      } finally {
-        setCreatingCheckout(false)
-      }
-      return
-    }
-
-    if (!isApiConfigured()) {
-      // No backend to create/verify a real transaction against — fall back
-      // to the old direct-to-Flutterwave path with a locally-generated
-      // reference. Loading state still clears via the effect above, once
-      // the checkout is actually on screen.
-      setCreatingCheckout(true)
-      setTxAmount(numericAmount)
-      setTxRef(`treasuregolive-${id}-${Date.now()}`)
-      pendingPaymentRef.current = true
+      // Free tiers are always available — no backend subscription to create,
+      // just unlock the tier's treasures directly.
+      activateTier(id, null, type)
+      setOpen(false)
+      navigate(`/treasures/${id}`)
       return
     }
 

@@ -4,7 +4,7 @@ import { Mail, Copy, Check } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { sendContactMessageRequest } from '@/services/contactService'
 
 const CONTACT_EMAIL = 'treasuregolive@gmail.com'
@@ -30,9 +30,7 @@ function ContactPage() {
     e.preventDefault()
     setSending(true)
     try {
-      if (isApiConfigured()) {
-        await sendContactMessageRequest({ subject, message })
-      }
+      await sendContactMessageRequest({ subject, message })
       toast.success('Message sent — we usually reply within 24 hours.')
       setSubject('')
       setMessage('')

@@ -6,21 +6,15 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useHunt } from '@/context/HuntContext'
-import { ApiError, isApiConfigured } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { startTreasureHuntRequest } from '@/services/publicTreasuresService'
 
-function TreasureCard({ id, name, description, region, found, location }) {
+function TreasureCard({ id, name, description, region, found }) {
   const navigate = useNavigate()
   const { startHunt } = useHunt()
   const [starting, setStarting] = useState(false)
 
   async function handleStartHunt() {
-    if (!isApiConfigured()) {
-      startHunt({ id, name, location })
-      navigate('/')
-      return
-    }
-
     setStarting(true)
     try {
       const result = await startTreasureHuntRequest(id)

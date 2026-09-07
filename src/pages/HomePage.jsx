@@ -1,14 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import {
-  APIProvider,
-  Map,
-  AdvancedMarker,
-  useMap,
-} from '@vis.gl/react-google-maps'
 import { MoreVertical, X as XIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { maplibregl, buildSatelliteStyle } from '@/lib/maplibreClient'
+import { clampPointToRect } from '@/lib/mapGeometry'
 import SideMenuDrawer from '@/components/layout/SideMenuDrawer'
 import DirectionalPad from '@/components/home/DirectionalPad'
 import QuickNavPill, { QUICK_NAV, NavIcon } from '@/components/layout/QuickNavPill'
@@ -24,69 +20,198 @@ import { useMessages } from '@/context/MessagesContext'
 import { ApiError } from '@/lib/api'
 import { markTreasureFoundRequest } from '@/services/publicTreasuresService'
 
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? ''
-
 const LAGOS_CENTER = { lat: 6.5244, lng: 3.3792 }
+const IDLE_ZOOM = 16
 
-function DebugTargetMarker({ position }) {
-  return (
-    <AdvancedMarker position={position} anchorLeft="-50%" anchorTop="-50%">
-      <div className="flex size-12 items-center justify-center rounded-full border-[3px] border-gold bg-white shadow-2xl">
-        <img src="/assets/icons/chest.png" alt="Treasure location" className="size-6" />
-      </div>
-    </AdvancedMarker>
-  )
+// Creates a non-interactive ("static image") MapLibre map once per
+// `buildCamera` identity — no pan, zoom, rotate, or any other camera
+// gesture is ever possible, so the treasure marker can be safely confined
+// to the screen: the viewport it's confined to can never move out from
+// under it. `buildCamera(mapInstance)` decides the initial center/zoom —
+// it gets a real (already-sized) map instance so it can use methods like
+// cameraForBounds that need to know the actual container dimensions.
+function useStaticMap(containerRef, buildCamera) {
+  const [map, setMap] = useState(null)
+
+  useEffect(() => {
+    if (!containerRef.current) return
+
+    const instance = new maplibregl.Map({
+      style: buildSatelliteStyle(),
+      container: containerRef.current,
+      center: [0, 0],
+      zoom: 1,
+      interactive: false,
+      attributionControl: false,
+    })
+
+    instance.jumpTo(buildCamera(instance))
+
+    setMap(instance)
+    return () => {
+      instance.remove()
+      setMap(null)
+    }
+  }, [containerRef, buildCamera])
+
+  return map
 }
 
-function DraggableTreasureMarker({ position, onMoved }) {
-  const map = useMap()
+// Forces a re-render whenever the map's container resizes — MapLibre's own
+// internal ResizeObserver already surfaces this as a 'resize' event, this
+// just gives components a reason to recompute anything pixel-based (like a
+// projected marker position) that depends on the container's size.
+function useMapResizeSignal(map) {
+  const [, bump] = useReducer((n) => n + 1, 0)
+  useEffect(() => {
+    if (!map) return
+    map.on('resize', bump)
+    return () => map.off('resize', bump)
+  }, [map])
+}
+
+// Projects a lat/lng into pixel coordinates relative to the map's
+// container. Computed directly during render (not via an effect+setState —
+// map.project is a cheap, synchronous, pure-given-the-current-camera call)
+// so the only thing that needs a subscription is knowing *when* to
+// recompute it, which is what useMapResizeSignal is for.
+function useProjectedPoint(map, latLng) {
+  useMapResizeSignal(map)
+  if (!map || !latLng) return null
+  const projected = map.project([latLng.lng, latLng.lat])
+  return { x: projected.x, y: projected.y }
+}
+
+function DebugTargetMarker({ map, position }) {
+  const point = useProjectedPoint(map, position)
+  if (!point) return null
 
   return (
-    <AdvancedMarker
-      position={position}
-      draggable
-      anchorLeft="-50%"
-      anchorTop="-50%"
-      className="outline-none focus:outline-none focus-visible:outline-none"
-      onDragEnd={(e) => {
-        const latLng = e.latLng
-        if (!latLng) return
-        const next = { lat: latLng.lat(), lng: latLng.lng() }
-        onMoved(next)
-        map?.panTo(next)
-      }}
+    <div
+      className="absolute z-10 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-gold bg-white shadow-2xl"
+      style={{ left: point.x, top: point.y }}
     >
-      <div
-        className="relative flex size-16 cursor-grab touch-none items-center justify-center select-none active:cursor-grabbing"
-        draggable={false}
-        onDragStart={(e) => e.preventDefault()}
-      >
-        <span className="absolute size-14 rounded-full bg-blue-500/20" />
-        <span className="relative z-10 size-5 rounded-full border-[3px] border-white bg-blue-600 shadow-[0_1px_4px_rgba(0,0,0,0.4)]" />
-      </div>
-    </AdvancedMarker>
+      <img src="/assets/icons/chest.png" alt="Treasure location" className="size-6" />
+    </div>
   )
 }
 
-function HomePage() {
-  const [menuOpen, setMenuOpen] = useState(false)
-  // TEMP: reveals the hunt's exact hidden spot on the map for testing the
-  // celebration flow. Remove this along with the debug toggle UI below once
-  // done testing.
-  const [debugRevealHuntTarget, setDebugRevealHuntTarget] = useState(true)
-  const { pathname } = useLocation()
-  const navigate = useNavigate()
-  const { activeHunt, clearHunt } = useHunt()
-  const { markFound } = useTreasureStatus()
-  const { unreadCount } = useMessages()
+// Dragging is implemented entirely in pixel space against the static
+// (non-panning) map: the pointer's raw client delta from drag-start is
+// added to the marker's starting on-screen pixel position, clamped to the
+// container's box, then converted back to lat/lng once via map.unproject().
+// This never touches the map's camera, so there's nothing for it to "follow
+// the marker" with — unlike native marker dragging (as Google Maps does
+// it), which hands control to the SDK and can auto-pan near the edges.
+function DraggableTreasureMarker({ map, containerRef, position, onMoved }) {
+  const point = useProjectedPoint(map, position)
+  const dragRef = useRef(null)
 
-  const mapCenter = activeHunt?.region ?? LAGOS_CENTER
-  const mapZoom = activeHunt ? HUNT_ZOOM : 80
-  const [treasurePosition, setTreasurePosition] = useState(mapCenter)
+  function handlePointerDown(e) {
+    if (!map || !containerRef.current) return
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startPoint: map.project([position.lng, position.lat]),
+    }
+  }
+
+  function handlePointerMove(e) {
+    const drag = dragRef.current
+    if (!drag || drag.pointerId !== e.pointerId || !map || !containerRef.current) return
+    e.stopPropagation()
+
+    const dx = e.clientX - drag.startClientX
+    const dy = e.clientY - drag.startClientY
+    const rect = containerRef.current.getBoundingClientRect()
+    const clamped = clampPointToRect(
+      { x: drag.startPoint.x + dx, y: drag.startPoint.y + dy },
+      rect,
+    )
+    const lngLat = map.unproject([clamped.x, clamped.y])
+    onMoved({ lat: lngLat.lat, lng: lngLat.lng })
+  }
+
+  function handlePointerUp(e) {
+    if (dragRef.current?.pointerId === e.pointerId) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+    dragRef.current = null
+  }
+
+  if (!point) return null
+
+  return (
+    <div
+      className="absolute z-10 flex size-16 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none items-center justify-center [-webkit-touch-callout:none] select-none outline-none active:cursor-grabbing"
+      style={{ left: point.x, top: point.y }}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      <span className="absolute size-14 rounded-full bg-blue-500/20" />
+      <span className="relative z-10 size-5 rounded-full border-[3px] border-white bg-blue-600 shadow-[0_1px_4px_rgba(0,0,0,0.4)]" />
+    </div>
+  )
+}
+
+// Everything that depends on `treasurePosition` starting fresh whenever the
+// hunt changes (or clears) lives here, keyed by the hunt's id from
+// HomePage below — remounting on that key change is what resets
+// `treasurePosition` back to the new center, rather than an effect doing
+// it via setState (which only cascades renders for no benefit, since a
+// fresh mount achieves the same reset for free).
+function HuntMap({ activeHunt, debugRevealHuntTarget }) {
+  const navigate = useNavigate()
+  const { clearHunt } = useHunt()
+  const { markFound } = useTreasureStatus()
+
+  const startPosition = activeHunt?.region ?? LAGOS_CENTER
+  const [treasurePosition, setTreasurePosition] = useState(startPosition)
   // Guards against firing the /find request twice — the win-condition
   // effect below can re-run (e.g. another drag) while the first call is
   // still in flight, since nothing synchronous stops it before then.
   const completingHuntRef = useRef(false)
+
+  const containerRef = useRef(null)
+  // A fixed HUNT_ZOOM can't guarantee the target (300-450m from the hunt's
+  // start, by design) actually fits on a static, non-panning screen — a
+  // jitter angle that happens to run along the screen's narrower dimension
+  // could still push the target off-screen at any single hand-picked zoom.
+  // cameraForBounds is MapLibre's own tool for exactly this: given both
+  // points, it accounts for the real container's aspect ratio itself and
+  // returns a center/zoom guaranteed to fit both, so the hunt is never
+  // accidentally unwinnable on a smaller or unusually-shaped viewport.
+  const buildCamera = useCallback(
+    (mapInstance) => {
+      if (!activeHunt) {
+        return { center: [LAGOS_CENTER.lng, LAGOS_CENTER.lat], zoom: IDLE_ZOOM }
+      }
+
+      const bounds = new maplibregl.LngLatBounds()
+        .extend([activeHunt.region.lng, activeHunt.region.lat])
+        .extend([activeHunt.target.lng, activeHunt.target.lat])
+      // Asymmetric so neither point lands under the "Hunting: …" banner up
+      // top or the nav icon down at the bottom — not just anywhere on
+      // screen, but clear of the UI chrome sitting on top of the map.
+      const fitted = mapInstance.cameraForBounds(bounds, {
+        padding: { top: 110, bottom: 170, left: 70, right: 70 },
+        maxZoom: HUNT_ZOOM,
+      })
+
+      return fitted
+        ? { center: fitted.center, zoom: Math.min(fitted.zoom, HUNT_ZOOM) }
+        : { center: [activeHunt.region.lng, activeHunt.region.lat], zoom: HUNT_ZOOM }
+    },
+    [activeHunt],
+  )
+  const map = useStaticMap(containerRef, buildCamera)
 
   useEffect(() => {
     if (!activeHunt) return
@@ -118,27 +243,49 @@ function HomePage() {
   }, [treasurePosition, activeHunt, clearHunt, navigate, markFound])
 
   return (
+    <>
+      <div ref={containerRef} className="absolute inset-0 h-full w-full bg-navy-deep" />
+
+      {map && (
+        <DraggableTreasureMarker
+          map={map}
+          containerRef={containerRef}
+          position={treasurePosition}
+          onMoved={setTreasurePosition}
+        />
+      )}
+      {map && debugRevealHuntTarget && activeHunt && (
+        <DebugTargetMarker map={map} position={activeHunt.target} />
+      )}
+      {map && (
+        <DirectionalPad
+          map={map}
+          containerRef={containerRef}
+          position={treasurePosition}
+          onMove={setTreasurePosition}
+        />
+      )}
+    </>
+  )
+}
+
+function HomePage() {
+  const [menuOpen, setMenuOpen] = useState(false)
+  // TEMP: reveals the hunt's exact hidden spot on the map for testing the
+  // celebration flow. Remove this along with the debug toggle UI below once
+  // done testing.
+  const [debugRevealHuntTarget, setDebugRevealHuntTarget] = useState(true)
+  const { pathname } = useLocation()
+  const { activeHunt, clearHunt } = useHunt()
+  const { unreadCount } = useMessages()
+
+  return (
     <div className="relative h-screen w-full overflow-hidden">
-      <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
-        <Map
-          className="absolute inset-0 h-full w-full"
-          mapId="DEMO_MAP_ID"
-          defaultCenter={mapCenter}
-          defaultZoom={mapZoom}
-          mapTypeId="satellite"
-          disableDefaultUI
-          gestureHandling="greedy"
-        >
-          <DraggableTreasureMarker
-            position={treasurePosition}
-            onMoved={setTreasurePosition}
-          />
-          {debugRevealHuntTarget && activeHunt && (
-            <DebugTargetMarker position={activeHunt.target} />
-          )}
-        </Map>
-        <DirectionalPad position={treasurePosition} onMove={setTreasurePosition} />
-      </APIProvider>
+      <HuntMap
+        key={activeHunt?.treasureId ?? 'idle'}
+        activeHunt={activeHunt}
+        debugRevealHuntTarget={debugRevealHuntTarget}
+      />
 
       <div className="absolute top-4 left-4 z-10 flex items-center gap-1 rounded-full bg-navy-deep/55 py-1 pr-4 pl-1.5 text-white backdrop-blur-sm">
         <img src="/assets/green_bg_logo.png" alt="Treasure Go" className="h-7 w-7 shrink-0 object-contain" />

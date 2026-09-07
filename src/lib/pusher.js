@@ -8,7 +8,7 @@ let client = null
 
 // Lazily created — nothing opens a socket until something actually
 // subscribes, and it stays null entirely if no key is configured (e.g.
-// local/offline demo mode), same convention as the Google Maps/Flutterwave
+// local/offline demo mode), same convention as the satellite tile/Flutterwave
 // keys elsewhere in this app.
 function getPusherClient() {
   if (!PUSHER_APP_KEY) return null

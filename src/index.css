@@ -217,6 +217,19 @@ body {
   }
 }
 
+/* Gentle, small up/down float for the map's "drag the marker" hint. Only
+ * the vertical transform is animated: horizontal centering comes from the
+ * separate `translate` property (-translate-x-1/2), which this doesn't touch. */
+@keyframes hint-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
 @keyframes celebrate-fade-up {
   0% {
     transform: translateY(14px);

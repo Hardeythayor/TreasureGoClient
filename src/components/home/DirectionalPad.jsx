@@ -8,7 +8,7 @@ import { clampPointToRect } from '@/lib/mapGeometry'
 const MAX_STEP_PX = 7
 const TICK_MS = 220
 
-function DirectionalPad({ map, containerRef, position, onMove }) {
+function DirectionalPad({ map, containerRef, position, onMove, onWander }) {
   const intervalRef = useRef(null)
   // Always holds the latest position without needing it in nudge's deps —
   // nudge is called from a setInterval closure that's only created once
@@ -38,6 +38,7 @@ function DirectionalPad({ map, containerRef, position, onMove }) {
   }
 
   function startWandering() {
+    onWander()
     nudge()
     clearInterval(intervalRef.current)
     intervalRef.current = setInterval(nudge, TICK_MS)

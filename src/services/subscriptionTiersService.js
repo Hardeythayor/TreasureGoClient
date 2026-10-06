@@ -1,25 +1,22 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/lib/api'
 
-export function createTierRequest({ name, amount, validityDays, rewardAmount, type, status }) {
-  return apiPost('/admin/subscription-tiers', {
-    name,
-    amount: Number(amount),
-    validity: Number(validityDays),
-    reward_amount: Number(rewardAmount),
-    type,
-    status,
-  })
+// Free tiers have no price or validity window, so amount/validity are left
+// out of the payload entirely for them — only premium tiers send those.
+function tierPayload({ name, amount, validityDays, rewardAmount, type, status }) {
+  const payload = { name, reward_amount: Number(rewardAmount), type, status }
+  if (type === 'premium') {
+    payload.amount = Number(amount)
+    payload.validity = Number(validityDays)
+  }
+  return payload
 }
 
-export function updateTierRequest(id, { name, amount, validityDays, rewardAmount, type, status }) {
-  return apiPut(`/admin/subscription-tiers/${id}`, {
-    name,
-    amount: Number(amount),
-    validity: Number(validityDays),
-    reward_amount: Number(rewardAmount),
-    type,
-    status,
-  })
+export function createTierRequest(form) {
+  return apiPost('/admin/subscription-tiers', tierPayload(form))
+}
+
+export function updateTierRequest(id, form) {
+  return apiPut(`/admin/subscription-tiers/${id}`, tierPayload(form))
 }
 
 export function toggleTierStatusRequest(id) {

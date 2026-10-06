@@ -30,7 +30,7 @@ function QuickNavPill() {
   const { unreadCount } = useMessages()
 
   return (
-    <nav className="fixed inset-x-0 bottom-6 z-10 mx-auto flex w-fit gap-1.5 rounded-full bg-white p-1.5 shadow-lg md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-10 flex bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-2px_12px_rgba(0,0,0,0.08)] md:hidden">
       {QUICK_NAV.map(({ to, icon: Icon, label }) => {
         const active = pathname === to
         return (
@@ -38,16 +38,16 @@ function QuickNavPill() {
             key={label}
             to={to}
             className={cn(
-              'flex items-center gap-1.5 rounded-full px-3.5 py-2 text-navy-mid transition-colors',
-              active ? 'bg-gold text-navy-deep' : 'hover:bg-black/5',
+              'flex flex-1 flex-col items-center justify-center gap-1 py-2.5 transition-colors',
+              active ? 'font-semibold text-navy-deep' : 'text-black hover:bg-black/5',
             )}
           >
             <NavIcon
               icon={Icon}
               unreadBadge={to === '/messages' ? unreadCount : 0}
-              className="size-4"
+              className="size-5"
             />
-            <span className="text-xs font-medium whitespace-nowrap">{label}</span>
+            <span className="text-[11px] leading-none whitespace-nowrap">{label}</span>
           </Link>
         )
       })}

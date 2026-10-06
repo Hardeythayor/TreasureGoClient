@@ -103,13 +103,14 @@ function DebugTargetMarker({ map, position }) {
 // This never touches the map's camera, so there's nothing for it to "follow
 // the marker" with — unlike native marker dragging (as Google Maps does
 // it), which hands control to the SDK and can auto-pan near the edges.
-function DraggableTreasureMarker({ map, containerRef, position, onMoved }) {
+function DraggableTreasureMarker({ map, containerRef, position, onMoved, showHint, onGrab }) {
   const point = useProjectedPoint(map, position)
   const dragRef = useRef(null)
 
   function handlePointerDown(e) {
     if (!map || !containerRef.current) return
     e.stopPropagation()
+    onGrab()
     e.currentTarget.setPointerCapture(e.pointerId)
     dragRef.current = {
       pointerId: e.pointerId,
@@ -157,6 +158,12 @@ function DraggableTreasureMarker({ map, containerRef, position, onMoved }) {
     >
       <span className="absolute size-14 rounded-full bg-blue-500/20" />
       <span className="relative z-10 size-5 rounded-full border-[3px] border-white bg-blue-600 shadow-[0_1px_4px_rgba(0,0,0,0.4)]" />
+      {showHint && (
+        <div className="pointer-events-none absolute bottom-full left-1/2 mb-3 w-max max-w-60 -translate-x-1/2 animate-[hint-bob_2.4s_ease-in-out_infinite] rounded-xl bg-white px-4 py-2.5 text-center text-sm font-medium text-black shadow-xl">
+          Drag the marker to start hunting
+          <span className="absolute top-full left-1/2 size-0 -translate-x-1/2 border-x-[7px] border-t-8 border-x-transparent border-t-white" />
+        </div>
+      )}
     </div>
   )
 }
@@ -168,6 +175,9 @@ function DraggableTreasureMarker({ map, containerRef, position, onMoved }) {
 // it via setState (which only cascades renders for no benefit, since a
 // fresh mount achieves the same reset for free).
 function HuntMap({ activeHunt, debugRevealHuntTarget }) {
+  // Shown once per map load — dismissed the first time the marker is grabbed
+  // or the nav button is pressed, and stays dismissed until the page reloads.
+  const [showHint, setShowHint] = useState(true)
   const navigate = useNavigate()
   const { clearHunt } = useHunt()
   const { markFound } = useTreasureStatus()
@@ -252,6 +262,8 @@ function HuntMap({ activeHunt, debugRevealHuntTarget }) {
           containerRef={containerRef}
           position={treasurePosition}
           onMoved={setTreasurePosition}
+          showHint={showHint}
+          onGrab={() => setShowHint(false)}
         />
       )}
       {map && debugRevealHuntTarget && activeHunt && (
@@ -263,6 +275,7 @@ function HuntMap({ activeHunt, debugRevealHuntTarget }) {
           containerRef={containerRef}
           position={treasurePosition}
           onMove={setTreasurePosition}
+          onWander={() => setShowHint(false)}
         />
       )}
     </>
@@ -287,12 +300,12 @@ function HomePage() {
         debugRevealHuntTarget={debugRevealHuntTarget}
       />
 
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-1 rounded-full bg-navy-deep/55 py-1 pr-4 pl-1.5 text-white backdrop-blur-sm">
+      {/* <div className="absolute top-4 left-4 z-10 flex items-center gap-1 rounded-full bg-navy-deep/55 py-1 pr-4 pl-1.5 text-white backdrop-blur-sm">
         <img src="/assets/green_bg_logo.png" alt="Treasure Go" className="h-7 w-7 shrink-0 object-contain" />
         <span className="text-sm font-bold tracking-wide whitespace-nowrap uppercase">
           <span className="text-white">Treasure</span> <span className="text-gold">Go</span>
         </span>
-      </div>
+      </div> */}
 
       {activeHunt && (
         <div className="absolute top-16 left-1/2 z-10 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-full bg-navy-deep/80 py-2 pr-2 pl-4 text-white backdrop-blur-sm md:top-4">

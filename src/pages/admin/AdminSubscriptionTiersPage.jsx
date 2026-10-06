@@ -71,6 +71,7 @@ function AdminSubscriptionTiersPage() {
   }, [search, typeFilter, statusFilter, fetchTiers])
 
   const rows = tiers
+  const isPremium = form.type === 'premium'
 
   function openCreate() {
     setEditingId(null)
@@ -222,7 +223,13 @@ function AdminSubscriptionTiersPage() {
                     <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                     <TableCell className="font-medium">{t.name}</TableCell>
                     <TableCell>${t.amount}</TableCell>
-                    <TableCell>{t.validityDays} days</TableCell>
+                    <TableCell>
+                      {t.type === 'premium' ? (
+                        `${t.validityDays} days`
+                      ) : (
+                        <span className="text-xs font-bold text-yellow-600">Infinite</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={t.type === 'premium' ? 'warning' : 'success'}>
                         {t.type === 'premium' ? 'Premium' : 'Free'}
@@ -289,41 +296,59 @@ function AdminSubscriptionTiersPage() {
               <FieldError message={fieldErrors.name} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className={labelClass} htmlFor="tier-amount">
-                  Amount ($)
-                </label>
-                <Input
-                  id="tier-amount"
-                  type="number"
-                  min="0"
-                  step="1"
-                  required
-                  value={form.amount}
-                  onChange={updateField('amount')}
-                  placeholder="e.g. 25"
-                />
-                <FieldError message={fieldErrors.amount} />
-              </div>
-
-              <div className="space-y-1">
-                <label className={labelClass} htmlFor="tier-validity">
-                  Validity (days)
-                </label>
-                <Input
-                  id="tier-validity"
-                  type="number"
-                  min="1"
-                  step="1"
-                  required
-                  value={form.validityDays}
-                  onChange={updateField('validityDays')}
-                  placeholder="e.g. 30"
-                />
-                <FieldError message={fieldErrors.validity} />
-              </div>
+            <div className="space-y-1">
+              <label className={labelClass} htmlFor="tier-type">
+                Type
+              </label>
+              <select
+                id="tier-type"
+                value={form.type}
+                onChange={updateField('type')}
+                className={`${selectClass} w-full`}
+              >
+                <option value="free">Free</option>
+                <option value="premium">Premium</option>
+              </select>
+              <FieldError message={fieldErrors.type} />
             </div>
+
+            {isPremium && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className={labelClass} htmlFor="tier-amount">
+                    Amount ($)
+                  </label>
+                  <Input
+                    id="tier-amount"
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    value={form.amount}
+                    onChange={updateField('amount')}
+                    placeholder="e.g. 25"
+                  />
+                  <FieldError message={fieldErrors.amount} />
+                </div>
+
+                <div className="space-y-1">
+                  <label className={labelClass} htmlFor="tier-validity">
+                    Validity (days)
+                  </label>
+                  <Input
+                    id="tier-validity"
+                    type="number"
+                    min="1"
+                    step="1"
+                    required
+                    value={form.validityDays}
+                    onChange={updateField('validityDays')}
+                    placeholder="e.g. 30"
+                  />
+                  <FieldError message={fieldErrors.validity} />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1">
               <label className={labelClass} htmlFor="tier-reward-amount">
@@ -342,38 +367,20 @@ function AdminSubscriptionTiersPage() {
               <FieldError message={fieldErrors.reward_amount} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className={labelClass} htmlFor="tier-type">
-                  Type
-                </label>
-                <select
-                  id="tier-type"
-                  value={form.type}
-                  onChange={updateField('type')}
-                  className={`${selectClass} w-full`}
-                >
-                  <option value="free">Free</option>
-                  <option value="premium">Premium</option>
-                </select>
-                <FieldError message={fieldErrors.type} />
-              </div>
-
-              <div className="space-y-1">
-                <label className={labelClass} htmlFor="tier-status">
-                  Status
-                </label>
-                <select
-                  id="tier-status"
-                  value={form.status}
-                  onChange={updateField('status')}
-                  className={`${selectClass} w-full`}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-                <FieldError message={fieldErrors.status} />
-              </div>
+            <div className="space-y-1">
+              <label className={labelClass} htmlFor="tier-status">
+                Status
+              </label>
+              <select
+                id="tier-status"
+                value={form.status}
+                onChange={updateField('status')}
+                className={`${selectClass} w-full`}
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+              <FieldError message={fieldErrors.status} />
             </div>
 
             <DialogFooter className="mt-2">

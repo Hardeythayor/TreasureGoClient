@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
+import { MailWarning } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,15 +37,31 @@ function formatMemberSince(iso) {
 const labelClass = 'text-xs font-semibold text-navy-mid'
 
 function ProfilePage() {
-  const { user, updateProfile } = useAuth()
+  const { user, updateProfile, resendVerificationCode } = useAuth()
+  const navigate = useNavigate()
 
   const [editOpen, setEditOpen] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', username: '', country: '' })
   const [fieldErrors, setFieldErrors] = useState({})
   const [saving, setSaving] = useState(false)
+  const [sendingCode, setSendingCode] = useState(false)
 
   if (!user?.name) {
     return <p className="p-6 text-center text-sm text-muted-foreground">Loading profile…</p>
+  }
+
+  // Resends a fresh code before sending the user to /verify-email — the one
+  // sent at registration may be long expired if they skipped it back then.
+  async function handleVerifyEmail() {
+    setSendingCode(true)
+    try {
+      await resendVerificationCode()
+    } catch (err) {
+      toast.error(err?.message || 'Failed to send verification code.')
+    } finally {
+      setSendingCode(false)
+    }
+    navigate('/verify-email')
   }
 
   function openEdit() {
@@ -109,6 +126,18 @@ function ProfilePage() {
         </div>
         <h2 className="mt-3 font-heading text-lg font-semibold">{user.name}</h2>
         <p className="text-xs text-muted-foreground">@{user.username}</p>
+
+        {!user.emailVerifiedAt && (
+          <div className="mt-4 flex items-center gap-3 rounded-lg bg-warning-bg p-3 text-left">
+            <MailWarning className="size-5 shrink-0 text-warning" />
+            <p className="flex-1 text-xs font-medium text-warning">
+              Your email address isn&apos;t verified yet.
+            </p>
+            <Button size="sm" onClick={handleVerifyEmail} disabled={sendingCode}>
+              {sendingCode ? 'Sending…' : 'Verify Email'}
+            </Button>
+          </div>
+        )}
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-left">
           {stats.map(({ label, value }) => (

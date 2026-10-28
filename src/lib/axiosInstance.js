@@ -3,6 +3,13 @@ import axios from 'axios'
 const SESSION_KEY = 'treasure-go:session'
 const ADMIN_SESSION_KEY = 'treasure-go:admin-session'
 
+// Dispatched on `window` whenever a session is cleared because its token
+// couldn't be refreshed (expired/invalid, no refresh token to try). This
+// module sits outside the React tree, so it can't redirect or update
+// AuthContext's in-memory user/admin state itself — it just clears
+// localStorage and lets this event do that. AuthContext listens for it.
+export const SESSION_EXPIRED_EVENT = 'treasure-go:session-expired'
+
 // TODO: confirm the real refresh endpoint path + request/response shape with
 // the backend — assumed as POST { refreshToken } -> { token, refreshToken }
 // until we're told otherwise. The current /login response has no
@@ -129,6 +136,9 @@ axiosInstance.interceptors.response.use(
     } catch (refreshError) {
       rejectPendingQueue(refreshError)
       clearSession(sessionKey)
+      window.dispatchEvent(
+        new CustomEvent(SESSION_EXPIRED_EVENT, { detail: { sessionKey } }),
+      )
       return Promise.reject(refreshError)
     } finally {
       isRefreshing = false

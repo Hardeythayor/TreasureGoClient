@@ -1,5 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router'
+import { toast } from 'sonner'
 import { ApiError } from '@/lib/api'
+import { SESSION_EXPIRED_EVENT } from '@/lib/axiosInstance'
 import { enablePushNotifications } from '@/lib/beams'
 import {
   changePasswordRequest,
@@ -105,6 +108,30 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => readSession(SESSION_KEY))
   const [admin, setAdmin] = useState(() => readSession(ADMIN_SESSION_KEY))
+  const navigate = useNavigate()
+
+  // The axios interceptor clears an expired session from localStorage on
+  // its own, but it sits outside the React tree and can't touch this
+  // component's in-memory user/admin state or redirect — without this,
+  // the route guard kept rendering the protected page (since `user`/`admin`
+  // here were still truthy) until a full reload re-read localStorage from
+  // scratch. This is what makes the redirect happen immediately instead.
+  useEffect(() => {
+    function handleSessionExpired(event) {
+      const { sessionKey } = event.detail
+      if (sessionKey === ADMIN_SESSION_KEY) {
+        setAdmin(null)
+        navigate('/admin/login', { replace: true })
+      } else {
+        setUser(null)
+        navigate('/login', { replace: true })
+      }
+      toast.error('Your session has expired. Please log in again.')
+    }
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
+  }, [navigate])
 
   const login = useCallback(async (email, password) => {
     const session = await authenticate(email, password, 'user')

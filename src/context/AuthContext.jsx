@@ -98,7 +98,15 @@ async function fetchProfile() {
   try {
     const result = await fetchCurrentUserRequest()
     return normalizeProfile(extractProfile(result))
-  } catch {
+  } catch (err) {
+    // GET /user sits behind the backend's `verified` middleware, which
+    // rejects an unverified account with 403 before a profile ever exists
+    // to return — not a transient failure, so it's worth telling apart from
+    // one. `emailVerifiedAt: null` here (vs. just missing) is what lets
+    // ProfilePage show a verify-email prompt instead of loading forever.
+    if (err instanceof ApiError && err.status === 403) {
+      return { emailVerifiedAt: null }
+    }
     return {}
   }
 }
@@ -280,9 +288,14 @@ export function AuthProvider({ children }) {
         cause: err,
       })
     }
+    // GET /user was rejected while the account was unverified, so name,
+    // username, etc. were never loaded — now that verification succeeded,
+    // fetch them for real instead of leaving the session with only the
+    // optimistic emailVerifiedAt patch below.
+    const profile = await fetchProfile()
     setUser((prev) => {
       if (!prev) return prev
-      const next = { ...prev, emailVerifiedAt: new Date().toISOString() }
+      const next = { ...prev, emailVerifiedAt: new Date().toISOString(), ...profile }
       localStorage.setItem(SESSION_KEY, JSON.stringify(next))
       return next
     })

@@ -46,10 +46,6 @@ function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [sendingCode, setSendingCode] = useState(false)
 
-  if (!user?.name) {
-    return <p className="p-6 text-center text-sm text-muted-foreground">Loading profile…</p>
-  }
-
   // Resends a fresh code before sending the user to /verify-email — the one
   // sent at registration may be long expired if they skipped it back then.
   async function handleVerifyEmail() {
@@ -62,6 +58,33 @@ function ProfilePage() {
       setSendingCode(false)
     }
     navigate('/verify-email')
+  }
+
+  // `emailVerifiedAt` is explicitly `null` (not just missing) only once
+  // fetchProfile has confirmed the 403 an unverified account gets back from
+  // GET /user — that endpoint requires a verified email, so there's no
+  // profile to show yet. Distinguishing this from "not loaded" is what lets
+  // this prompt show instead of "Loading profile…" running forever.
+  if (user?.emailVerifiedAt === null) {
+    return (
+      <div className="mx-auto max-w-md p-6 text-center">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-warning-bg text-warning">
+          <MailWarning className="size-7" />
+        </div>
+        <h2 className="mt-3 font-heading text-lg font-semibold">Verify your email</h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Your profile isn&apos;t available until you verify{' '}
+          <span className="font-medium text-foreground">{user.email}</span>.
+        </p>
+        <Button className="mt-5 w-full" onClick={handleVerifyEmail} disabled={sendingCode}>
+          {sendingCode ? 'Sending…' : 'Verify Email'}
+        </Button>
+      </div>
+    )
+  }
+
+  if (!user?.name) {
+    return <p className="p-6 text-center text-sm text-muted-foreground">Loading profile…</p>
   }
 
   function openEdit() {
@@ -126,18 +149,6 @@ function ProfilePage() {
         </div>
         <h2 className="mt-3 font-heading text-lg font-semibold">{user.name}</h2>
         <p className="text-xs text-muted-foreground">@{user.username}</p>
-
-        {!user.emailVerifiedAt && (
-          <div className="mt-4 flex items-center gap-3 rounded-lg bg-warning-bg p-3 text-left">
-            <MailWarning className="size-5 shrink-0 text-warning" />
-            <p className="flex-1 text-xs font-medium text-warning">
-              Your email address isn&apos;t verified yet.
-            </p>
-            <Button size="sm" onClick={handleVerifyEmail} disabled={sendingCode}>
-              {sendingCode ? 'Sending…' : 'Verify Email'}
-            </Button>
-          </div>
-        )}
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-left">
           {stats.map(({ label, value }) => (

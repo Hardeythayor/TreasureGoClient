@@ -32,9 +32,16 @@ function SignupPage() {
   const [submitting, setSubmitting] = useState(false)
   const recaptchaContainerRef = useRef(null)
   const recaptchaWidgetId = useRef(null)
+  // Set synchronously (not after the render promise settles) so React
+  // StrictMode's dev-only double-invocation of this effect — which reruns
+  // before the first call's network round trip has resolved — doesn't call
+  // renderRecaptcha a second time on the same container. Google's widget
+  // throws if you render twice into one element.
+  const recaptchaRenderStarted = useRef(false)
 
   useEffect(() => {
-    if (!recaptchaContainerRef.current) return
+    if (!recaptchaContainerRef.current || recaptchaRenderStarted.current) return
+    recaptchaRenderStarted.current = true
     renderRecaptcha(recaptchaContainerRef.current)
       .then((id) => {
         recaptchaWidgetId.current = id

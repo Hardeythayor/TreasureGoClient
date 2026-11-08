@@ -2,7 +2,6 @@ import { BrowserRouter } from 'react-router'
 import { AuthProvider } from '@/context/AuthContext'
 import { SubscriptionProvider } from '@/context/SubscriptionContext'
 import { HuntProvider } from '@/context/HuntContext'
-import { TreasureStatusProvider } from '@/context/TreasureStatusContext'
 import { SubscriptionTiersProvider } from '@/context/SubscriptionTiersContext'
 import { AdminTreasuresProvider } from '@/context/AdminTreasuresContext'
 import { AdminUsersProvider } from '@/context/AdminUsersContext'
@@ -20,29 +19,27 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <SubscriptionProvider>
-          <TreasureStatusProvider>
-            <SubscriptionTiersProvider>
-              <AdminTreasuresProvider>
-                <AdminUsersProvider>
-                  <AdminTreasureRewardsProvider>
-                    <AdminMessagesProvider>
-                      <AdminMessagesFeedProvider>
-                        <AdminSubscriptionAnalyticsProvider>
-                          <RewardsProvider>
-                            <MessagesProvider>
-                              <HuntProvider>
-                                <AppRoutes />
-                              </HuntProvider>
-                            </MessagesProvider>
-                          </RewardsProvider>
-                        </AdminSubscriptionAnalyticsProvider>
-                      </AdminMessagesFeedProvider>
-                    </AdminMessagesProvider>
-                  </AdminTreasureRewardsProvider>
-                </AdminUsersProvider>
-              </AdminTreasuresProvider>
-            </SubscriptionTiersProvider>
-          </TreasureStatusProvider>
+          <SubscriptionTiersProvider>
+            <AdminTreasuresProvider>
+              <AdminUsersProvider>
+                <AdminTreasureRewardsProvider>
+                  <AdminMessagesProvider>
+                    <AdminMessagesFeedProvider>
+                      <AdminSubscriptionAnalyticsProvider>
+                        <RewardsProvider>
+                          <MessagesProvider>
+                            <HuntProvider>
+                              <AppRoutes />
+                            </HuntProvider>
+                          </MessagesProvider>
+                        </RewardsProvider>
+                      </AdminSubscriptionAnalyticsProvider>
+                    </AdminMessagesFeedProvider>
+                  </AdminMessagesProvider>
+                </AdminTreasureRewardsProvider>
+              </AdminUsersProvider>
+            </AdminTreasuresProvider>
+          </SubscriptionTiersProvider>
         </SubscriptionProvider>
       </AuthProvider>
       <Toaster position="top-center" richColors />

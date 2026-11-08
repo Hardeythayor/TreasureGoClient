@@ -65,15 +65,24 @@ export function HuntProvider({ children }) {
   // directly as `target`) — `region` is just a random nearby point to start
   // the marker/map at, so the hunt isn't already won the moment it starts.
   const startHunt = useCallback((treasure) => {
-    const target = treasure.location
-    const hunt = {
-      treasureId: treasure.id,
-      name: treasure.name,
-      region: jitterLocation(target, HUNT_JITTER_MIN_M, HUNT_JITTER_M),
-      target,
-    }
-    localStorage.setItem(HUNT_KEY, JSON.stringify(hunt))
-    setActiveHunt(hunt)
+    setActiveHunt((prev) => {
+      // Re-picking a treasure you're already mid-hunt on (e.g. backing out
+      // to the treasures list and tapping "Start Hunt" again) should resume
+      // that hunt, not reroll a fresh random start point — a new jittered
+      // region every time would silently throw away whatever progress the
+      // marker had already made toward the target.
+      if (prev?.treasureId === treasure.id) return prev
+
+      const target = treasure.location
+      const hunt = {
+        treasureId: treasure.id,
+        name: treasure.name,
+        region: jitterLocation(target, HUNT_JITTER_MIN_M, HUNT_JITTER_M),
+        target,
+      }
+      localStorage.setItem(HUNT_KEY, JSON.stringify(hunt))
+      return hunt
+    })
   }, [])
 
   const clearHunt = useCallback(() => {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import { PasswordInput } from '@/components/ui/password-input'
 import { FieldError } from '@/components/ui/field-error'
 import { useAuth } from '@/context/AuthContext'
 import { getFieldErrors } from '@/lib/formErrors'
+import { getRecaptchaResponse, renderRecaptcha, resetRecaptcha } from '@/lib/recaptcha'
 
 const EMPTY_FORM = {
   name: '',
@@ -29,6 +30,17 @@ function SignupPage() {
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
+  const recaptchaContainerRef = useRef(null)
+  const recaptchaWidgetId = useRef(null)
+
+  useEffect(() => {
+    if (!recaptchaContainerRef.current) return
+    renderRecaptcha(recaptchaContainerRef.current)
+      .then((id) => {
+        recaptchaWidgetId.current = id
+      })
+      .catch((err) => setError(err.message || 'Failed to load reCAPTCHA.'))
+  }, [])
 
   if (user) {
     return (
@@ -63,11 +75,17 @@ function SignupPage() {
       return
     }
 
+    const recaptchaToken = getRecaptchaResponse(recaptchaWidgetId.current)
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA checkbox.')
+      return
+    }
+
     setError('')
     setFieldErrors({})
     setSubmitting(true)
     try {
-      const loggedIn = await register(form)
+      const loggedIn = await register({ ...form, recaptchaToken })
       if (loggedIn) {
         navigate('/verify-email', { replace: true })
       } else {
@@ -76,9 +94,20 @@ function SignupPage() {
       }
     } catch (err) {
       const fields = getFieldErrors(err)
+      // reCAPTCHA has no form field of its own to anchor a FieldError to,
+      // so its message (keyed by the backend's recaptcha_token field)
+      // surfaces in the general banner instead of being silently dropped.
+      const recaptchaMessage = fields.recaptcha_token
+      delete fields.recaptcha_token
       setFieldErrors(fields)
-      setError(Object.keys(fields).length ? '' : err.message || 'Something went wrong. Please try again.')
+      setError(
+        recaptchaMessage ||
+          (Object.keys(fields).length ? '' : err.message || 'Something went wrong. Please try again.'),
+      )
     } finally {
+      // A checkbox token is single-use regardless of outcome — reset so
+      // the next attempt (retry or otherwise) needs a fresh tick.
+      resetRecaptcha(recaptchaWidgetId.current)
       setSubmitting(false)
     }
   }
@@ -193,6 +222,7 @@ function SignupPage() {
             />
             <FieldError message={fieldErrors.password_confirmation} />
           </div>
+          <div ref={recaptchaContainerRef} className="mb-4" />
           <Button type="submit" className="w-full" disabled={submitting}>
             {submitting ? 'Creating account…' : 'Create Account'}
           </Button>

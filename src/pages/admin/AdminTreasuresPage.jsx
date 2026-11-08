@@ -123,7 +123,12 @@ function AdminTreasuresPage() {
   }
 
   async function handleDelete(treasure) {
-    if (!window.confirm(`Delete "${treasure.name}"? This can't be undone.`)) return
+    if (
+      !window.confirm(
+        `Delete "${treasure.name}"? It will disappear from players' view, but hunt history for it is preserved.`,
+      )
+    )
+      return
     try {
       await deleteTreasure(treasure.id)
       toast.success(`"${treasure.name}" deleted.`)

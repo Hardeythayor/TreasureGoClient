@@ -32,7 +32,7 @@ function CelebrationPage() {
 
   return (
     <div
-      className="relative flex h-screen flex-col items-center justify-center overflow-hidden text-center text-white"
+      className="relative flex h-screen flex-col items-center justify-center overflow-hidden px-6 text-center text-white"
       style={{
         background:
           'radial-gradient(circle at 50% 40%, #1e6e40 0%, #0e5a21 70%)',
@@ -61,15 +61,15 @@ function CelebrationPage() {
       />
 
       <h1
-        className="bg-linear-to-br from-white to-gold-light bg-clip-text font-heading text-4xl font-bold tracking-wide text-transparent opacity-0"
+        className="bg-linear-to-br from-white to-gold-light bg-clip-text font-heading text-[clamp(1.75rem,8vw,2.25rem)] font-bold tracking-wide text-transparent opacity-0"
         style={{
           animation: 'celebrate-pop-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s forwards',
         }}
       >
-        CONGRATULATIONS!
+        CONGRATS!
       </h1>
       <p
-        className="mt-2 text-sm text-white/85 opacity-0"
+        className="mt-2 max-w-xs text-sm break-words text-white/85 opacity-0 sm:max-w-sm"
         style={{ animation: 'celebrate-fade-up 0.5s ease-out 0.55s forwards' }}
       >
         You found {treasureName ?? 'the treasure'} 🎉

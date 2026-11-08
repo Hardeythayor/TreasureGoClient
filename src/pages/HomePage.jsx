@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { MoreVertical, X as XIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { maplibregl, buildSatelliteStyle } from '@/lib/maplibreClient'
-import { clampPointToRect } from '@/lib/mapGeometry'
+import { clampPointToRect, zoomKeepingTargetVisible } from '@/lib/mapGeometry'
 import SideMenuDrawer from '@/components/layout/SideMenuDrawer'
 import DirectionalPad from '@/components/home/DirectionalPad'
 import QuickNavPill, { QUICK_NAV, NavIcon } from '@/components/layout/QuickNavPill'
@@ -15,21 +15,22 @@ import {
   HUNT_ZOOM,
   HUNT_WIN_THRESHOLD_M,
 } from '@/context/HuntContext'
-import { useTreasureStatus } from '@/context/TreasureStatusContext'
 import { useMessages } from '@/context/MessagesContext'
 import { ApiError } from '@/lib/api'
 import { markTreasureFoundRequest } from '@/services/publicTreasuresService'
 
-const LAGOS_CENTER = { lat: 6.5244, lng: 3.3792 }
+// A dense, untouched patch of Nigeria's Omo Forest Reserve — the map's
+// default view before any treasure is picked, so the idle screen reads as
+// "wilderness waiting to be explored" rather than showing an ordinary
+// populated city.
+const IDLE_CENTER = { lat: 6.92, lng: 4.37 }
 const IDLE_ZOOM = 16
 
 // Creates a non-interactive ("static image") MapLibre map once per
 // `buildCamera` identity — no pan, zoom, rotate, or any other camera
 // gesture is ever possible, so the treasure marker can be safely confined
 // to the screen: the viewport it's confined to can never move out from
-// under it. `buildCamera(mapInstance)` decides the initial center/zoom —
-// it gets a real (already-sized) map instance so it can use methods like
-// cameraForBounds that need to know the actual container dimensions.
+// under it. `buildCamera()` decides the initial center/zoom.
 function useStaticMap(containerRef, buildCamera) {
   const [map, setMap] = useState(null)
 
@@ -45,7 +46,7 @@ function useStaticMap(containerRef, buildCamera) {
       attributionControl: false,
     })
 
-    instance.jumpTo(buildCamera(instance))
+    instance.jumpTo(buildCamera())
 
     setMap(instance)
     return () => {
@@ -103,7 +104,7 @@ function DebugTargetMarker({ map, position }) {
 // This never touches the map's camera, so there's nothing for it to "follow
 // the marker" with — unlike native marker dragging (as Google Maps does
 // it), which hands control to the SDK and can auto-pan near the edges.
-function DraggableTreasureMarker({ map, containerRef, position, onMoved, showHint, onGrab }) {
+function DraggableTreasureMarker({ map, containerRef, position, onMoved, showHint, hintText, onGrab }) {
   const point = useProjectedPoint(map, position)
   const dragRef = useRef(null)
 
@@ -160,7 +161,7 @@ function DraggableTreasureMarker({ map, containerRef, position, onMoved, showHin
       <span className="relative z-10 size-5 rounded-full border-[3px] border-white bg-blue-600 shadow-[0_1px_4px_rgba(0,0,0,0.4)]" />
       {showHint && (
         <div className="pointer-events-none absolute bottom-full left-1/2 mb-3 w-max max-w-60 -translate-x-1/2 animate-[hint-bob_2.4s_ease-in-out_infinite] rounded-xl bg-white px-4 py-2.5 text-center text-sm font-medium text-black shadow-xl">
-          Drag the marker to start hunting
+          {hintText}
           <span className="absolute top-full left-1/2 size-0 -translate-x-1/2 border-x-[7px] border-t-8 border-x-transparent border-t-white" />
         </div>
       )}
@@ -180,9 +181,8 @@ function HuntMap({ activeHunt, debugRevealHuntTarget }) {
   const [showHint, setShowHint] = useState(true)
   const navigate = useNavigate()
   const { clearHunt } = useHunt()
-  const { markFound } = useTreasureStatus()
 
-  const startPosition = activeHunt?.region ?? LAGOS_CENTER
+  const startPosition = activeHunt?.region ?? IDLE_CENTER
   const [treasurePosition, setTreasurePosition] = useState(startPosition)
   // Guards against firing the /find request twice — the win-condition
   // effect below can re-run (e.g. another drag) while the first call is
@@ -190,37 +190,33 @@ function HuntMap({ activeHunt, debugRevealHuntTarget }) {
   const completingHuntRef = useRef(false)
 
   const containerRef = useRef(null)
-  // A fixed HUNT_ZOOM can't guarantee the target (300-450m from the hunt's
-  // start, by design) actually fits on a static, non-panning screen — a
-  // jitter angle that happens to run along the screen's narrower dimension
-  // could still push the target off-screen at any single hand-picked zoom.
-  // cameraForBounds is MapLibre's own tool for exactly this: given both
-  // points, it accounts for the real container's aspect ratio itself and
-  // returns a center/zoom guaranteed to fit both, so the hunt is never
-  // accidentally unwinnable on a smaller or unusually-shaped viewport.
-  const buildCamera = useCallback(
-    (mapInstance) => {
-      if (!activeHunt) {
-        return { center: [LAGOS_CENTER.lng, LAGOS_CENTER.lat], zoom: IDLE_ZOOM }
-      }
+  // The draggable marker always starts at activeHunt.region, and it has to
+  // render dead in the middle of the screen on load — same as the idle map
+  // below — so the camera is centered on region itself rather than fit to
+  // both region and target (which would land the camera somewhere between
+  // the two instead). A fixed HUNT_ZOOM can't guarantee the target
+  // (300-450m away, by design) still fits on a static, non-panning screen
+  // once the camera is pinned to region like this — a jitter angle running
+  // along the screen's narrower dimension could push it off-screen —  so
+  // zoomKeepingTargetVisible picks the most zoomed-in level that still
+  // keeps the target clear of the UI chrome sitting on top of the map.
+  const buildCamera = useCallback(() => {
+    if (!activeHunt) {
+      return { center: [IDLE_CENTER.lng, IDLE_CENTER.lat], zoom: IDLE_ZOOM }
+    }
 
-      const bounds = new maplibregl.LngLatBounds()
-        .extend([activeHunt.region.lng, activeHunt.region.lat])
-        .extend([activeHunt.target.lng, activeHunt.target.lat])
-      // Asymmetric so neither point lands under the "Hunting: …" banner up
-      // top or the nav icon down at the bottom — not just anywhere on
-      // screen, but clear of the UI chrome sitting on top of the map.
-      const fitted = mapInstance.cameraForBounds(bounds, {
-        padding: { top: 110, bottom: 170, left: 70, right: 70 },
-        maxZoom: HUNT_ZOOM,
-      })
+    const rect = containerRef.current.getBoundingClientRect()
+    const zoom = zoomKeepingTargetVisible({
+      center: activeHunt.region,
+      target: activeHunt.target,
+      width: rect.width,
+      height: rect.height,
+      padding: { top: 110, bottom: 170, left: 70, right: 70 },
+      maxZoom: HUNT_ZOOM,
+    })
 
-      return fitted
-        ? { center: fitted.center, zoom: Math.min(fitted.zoom, HUNT_ZOOM) }
-        : { center: [activeHunt.region.lng, activeHunt.region.lat], zoom: HUNT_ZOOM }
-    },
-    [activeHunt],
-  )
+    return { center: [activeHunt.region.lng, activeHunt.region.lat], zoom }
+  }, [activeHunt])
   const map = useStaticMap(containerRef, buildCamera)
 
   useEffect(() => {
@@ -235,7 +231,6 @@ function HuntMap({ activeHunt, debugRevealHuntTarget }) {
     async function completeHunt() {
       try {
         await markTreasureFoundRequest(treasureId)
-        markFound(treasureId)
         clearHunt()
         navigate(`/hunt/${treasureId}/found`, { state: { treasureName } })
       } catch (err) {
@@ -250,7 +245,7 @@ function HuntMap({ activeHunt, debugRevealHuntTarget }) {
     }
 
     completeHunt()
-  }, [treasurePosition, activeHunt, clearHunt, navigate, markFound])
+  }, [treasurePosition, activeHunt, clearHunt, navigate])
 
   return (
     <>
@@ -263,6 +258,7 @@ function HuntMap({ activeHunt, debugRevealHuntTarget }) {
           position={treasurePosition}
           onMoved={setTreasurePosition}
           showHint={showHint}
+          hintText={activeHunt ? 'Drag the marker to start hunting' : 'Tap LIST to start hunting'}
           onGrab={() => setShowHint(false)}
         />
       )}
@@ -293,7 +289,7 @@ function HomePage() {
   const { unreadCount } = useMessages()
 
   return (
-    <div className="relative h-screen w-full overflow-hidden">
+    <div className="relative h-dvh w-full overflow-hidden">
       <HuntMap
         key={activeHunt?.treasureId ?? 'idle'}
         activeHunt={activeHunt}
@@ -308,7 +304,7 @@ function HomePage() {
       </div> */}
 
       {activeHunt && (
-        <div className="absolute top-16 left-1/2 z-10 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-full bg-navy-deep/80 py-2 pr-2 pl-4 text-white backdrop-blur-sm md:top-4">
+        <div className="absolute top-4 left-4 z-10 flex max-w-[calc(100%-5.5rem)] items-center gap-2 rounded-full bg-white py-2 pr-2 pl-4 text-navy-mid shadow-lg">
           <span className="min-w-0 truncate text-xs font-semibold">
             Hunting: {activeHunt.name}
           </span>
@@ -316,7 +312,7 @@ function HomePage() {
             type="button"
             onClick={clearHunt}
             aria-label="Cancel hunt"
-            className="flex size-6 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+            className="flex size-6 items-center justify-center rounded-full text-navy-mid/70 hover:bg-black/5 hover:text-navy-mid"
           >
             <XIcon className="size-3.5" />
           </button>

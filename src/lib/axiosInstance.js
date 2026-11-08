@@ -52,6 +52,14 @@ axiosInstance.interceptors.request.use((config) => {
     const sessionKey = resolveSessionKey()
     config._sessionKey = sessionKey
     const token = readSession(sessionKey)?.token
+    // Globally-mounted providers (e.g. the admin notification feed) poll
+    // regardless of the current route, but resolveSessionKey() picks a
+    // session purely from the URL path — on a customer page with no admin
+    // route in it, that's the *user* slot, even for a request an admin
+    // context fired. If that slot has no token, this request was never
+    // authenticated in the first place, which the response interceptor
+    // below needs to know wasn't a real session expiring.
+    config._hadToken = Boolean(token)
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -108,8 +116,17 @@ axiosInstance.interceptors.response.use(
     // to begin with, so a 401 from them is a direct rejection (e.g. wrong
     // credentials) — not an expired-session signal, and there's nothing to
     // refresh. Let it reject as-is instead of routing it through the refresh
-    // flow, which would otherwise mask the real error.
-    if (!isAuthError || isRefreshCall || config?.skipAuth || !config || config._retried) {
+    // flow, which would otherwise mask the real error. Same logic for a
+    // request that resolved to a session slot with no token at all (see
+    // _hadToken above) — there was no session here to expire.
+    if (
+      !isAuthError ||
+      isRefreshCall ||
+      config?.skipAuth ||
+      !config ||
+      config._retried ||
+      !config._hadToken
+    ) {
       return Promise.reject(error)
     }
 

@@ -4,7 +4,15 @@ export function loginRequest(email, password) {
   return apiPost('/login', { email, password }, { skipAuth: true })
 }
 
-export function registerRequest({ name, username, email, country, password, passwordConfirmation }) {
+export function registerRequest({
+  name,
+  username,
+  email,
+  country,
+  password,
+  passwordConfirmation,
+  recaptchaToken,
+}) {
   return apiPost(
     '/register',
     {
@@ -14,6 +22,7 @@ export function registerRequest({ name, username, email, country, password, pass
       country,
       password,
       password_confirmation: passwordConfirmation,
+      recaptcha_token: recaptchaToken,
     },
     { skipAuth: true },
   )

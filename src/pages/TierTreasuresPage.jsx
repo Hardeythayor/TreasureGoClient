@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 import { Box } from 'lucide-react'
 import TreasureCard from '@/components/treasure/TreasureCard'
 import { EmptyState } from '@/components/ui/empty-state'
-import { useTreasureStatus } from '@/context/TreasureStatusContext'
 import { ApiError } from '@/lib/api'
 import { fetchTierTreasuresRequest } from '@/services/publicTreasuresService'
 
@@ -22,7 +21,7 @@ function normalizeTreasure(data) {
     description: '',
     region: data.region,
     location: data.location,
-    serverFound: data.status === 'found',
+    found: data.status === 'found',
   }
 }
 
@@ -32,7 +31,6 @@ function TierTreasuresPage() {
   // an extra round trip to resolve amount -> id (and the ambiguity of two
   // tiers sharing the same amount).
   const { tier } = useParams()
-  const { isFound } = useTreasureStatus()
   const [treasureList, setTreasureList] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -86,11 +84,7 @@ function TierTreasuresPage() {
       ) : (
         <div className="space-y-2.5">
           {treasureList.map((treasure) => (
-            <TreasureCard
-              key={treasure.id}
-              {...treasure}
-              found={treasure.serverFound || isFound(treasure.id)}
-            />
+            <TreasureCard key={treasure.id} {...treasure} />
           ))}
         </div>
       )}
